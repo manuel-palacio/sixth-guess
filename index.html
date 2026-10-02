@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="description" content="Guess the five-letter word in six tries, with a scratchpad that does the pen-and-paper work." />
+    <meta name="theme-color" content="#eef2f6" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#121a33" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <title>Sixth Guess</title>
+  </head>
+  <body>
+    <header class="topbar">
+      <h1 class="wordmark">
+        <span class="wordmark-glyph" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span>
+        <span class="wordmark-text">Sixth Guess</span>
+      </h1>
+      <div class="mode-switch" role="radiogroup" aria-label="Game mode">
+        <button type="button" role="radio" data-mode="daily" aria-checked="true">Daily</button>
+        <button type="button" role="radio" data-mode="practice" aria-checked="false">Practice</button>
+      </div>
+      <label class="language-picker">
+        <span class="visually-hidden">Word language</span>
+        <select id="language"></select>
+      </label>
+      <button type="button" class="icon-button" id="open-stats" aria-label="Statistics">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V11M12 20V4M19 20v-6" /></svg>
+      </button>
+      <button type="button" class="icon-button" id="toggle-theme" aria-label="Switch to dark theme">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" /></svg>
+      </button>
+      <button type="button" class="icon-button" id="open-settings" aria-label="Settings">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9" /><circle cx="15" cy="7" r="2" /><circle cx="9" cy="17" r="2" /></svg>
+      </button>
+    </header>
+
+    <main class="layout">
+      <section class="board-area" aria-label="Game board">
+        <p class="game-caption" id="game-caption"></p>
+        <div class="board" id="board"></div>
+        <div class="toast" id="toast" role="alert" aria-live="assertive"></div>
+      </section>
+
+      <aside class="scratchpad" id="scratchpad">
+        <details id="scratchpad-details">
+          <summary>
+            <span class="pad-title">Scratchpad</span>
+            <span class="pad-summary" id="pad-summary"></span>
+          </summary>
+          <div class="pad-body">
+            <section class="pad-section">
+              <h2>Pattern</h2>
+              <div class="pattern" id="pattern"></div>
+            </section>
+            <section class="pad-section">
+              <h2>Letters left</h2>
+              <p class="pool" id="pool"></p>
+            </section>
+            <section class="pad-section">
+              <p class="fit-count" id="fit-count"></p>
+              <div class="pad-actions">
+                <button type="button" class="pad-button" id="toggle-words" aria-expanded="false" aria-controls="fit-words">Show words that fit</button>
+                <button type="button" class="pad-button" id="suggest">Suggest a guess</button>
+              </div>
+              <p class="suggestion" id="suggestion" aria-live="polite"></p>
+              <ol class="fit-words" id="fit-words" hidden></ol>
+            </section>
+          </div>
+        </details>
+      </aside>
+
+      <div class="keyboard" id="keyboard" role="group" aria-label="Keyboard"></div>
+    </main>
+
+    <p class="visually-hidden" id="announcer" aria-live="polite"></p>
+
+    <dialog class="sheet" id="settings-dialog" aria-labelledby="settings-title">
+      <form method="dialog" class="sheet-head">
+        <h2 id="settings-title">Settings</h2>
+        <button class="icon-button" aria-label="Close settings">✕</button>
+      </form>
+      <div class="sheet-body">
+        <label class="setting">
+          <span><strong>Hard mode</strong><small>Every revealed hint must be used in later guesses. Turns on before your first guess.</small></span>
+          <input type="checkbox" id="setting-hard" />
+        </label>
+        <label class="setting">
+          <span><strong>Scratchpad</strong><small>Show the notes panel. Turn off for the plain game.</small></span>
+          <input type="checkbox" id="setting-scratchpad" />
+        </label>
+        <label class="setting">
+          <span><strong>Colour-blind mode</strong><small>Blue and orange tiles, with ✓ and ↔ marks.</small></span>
+          <input type="checkbox" id="setting-contrast" />
+        </label>
+        <label class="setting">
+          <span><strong>Theme</strong></span>
+          <select id="setting-theme">
+            <option value="system">Match system</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+        </label>
+        <section class="how-to">
+          <h3>How to play</h3>
+          <p>Guess the five-letter word in six tries. After each guess the tiles show how close you were:</p>
+          <ul>
+            <li><span class="mini-tile" data-state="correct">C</span> right letter, right place</li>
+            <li><span class="mini-tile" data-state="present">A</span> in the word, wrong place</li>
+            <li><span class="mini-tile" data-state="absent">T</span> not in the word</li>
+          </ul>
+          <p>Daily gives everyone the same word each day. Practice is unlimited.</p>
+        </section>
+      </div>
+    </dialog>
+
+    <dialog class="sheet" id="stats-dialog" aria-labelledby="stats-title">
+      <form method="dialog" class="sheet-head">
+        <h2 id="stats-title">Statistics</h2>
+        <button class="icon-button" aria-label="Close statistics">✕</button>
+      </form>
+      <div class="sheet-body" id="stats-body"></div>
+    </dialog>
+
+    <dialog class="sheet" id="result-dialog" aria-labelledby="result-title">
+      <form method="dialog" class="sheet-head">
+        <h2 id="result-title"></h2>
+        <button class="icon-button" aria-label="Close">✕</button>
+      </form>
+      <div class="sheet-body">
+        <p class="result-answer" id="result-answer"></p>
+        <div class="result-actions">
+          <button type="button" class="primary-button" id="share">Share result</button>
+          <button type="button" class="secondary-button" id="next-game">Play another</button>
+        </div>
+        <p class="next-daily" id="next-daily"></p>
+        <section>
+          <h3>Your game, guess by guess</h3>
+          <div id="review"></div>
+        </section>
+        <section id="result-stats"></section>
+      </div>
+    </dialog>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

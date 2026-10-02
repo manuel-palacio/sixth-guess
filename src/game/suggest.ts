@@ -1,0 +1,76 @@
+import type { GuessRecord } from './clues.ts';
+import { patternCode, WINNING_PATTERN } from './feedback.ts';
+
+export interface Suggestion {
+  word: string;
+  groupCount: number;
+  largestGroup: number;
+  reason: string;
+}
+
+interface Split {
+  groupCount: number;
+  largestGroup: number;
+}
+
+const groupSizes = new Uint16Array(WINNING_PATTERN + 1);
+
+/**
+ * The guess that splits the candidates into the most distinct feedback patterns.
+ * Ties prefer a word that could itself be the answer, then the smallest worst-case group.
+ */
+export function suggestGuess(candidates: readonly string[], guessPool: readonly string[], history: GuessRecord[]): Suggestion {
+  if (candidates.length === 0) throw new Error('No candidates fit the clues');
+  if (candidates.length <= 2) return suggestCandidate(candidates);
+  const candidateSet = new Set(candidates);
+  let best = { word: candidates[0], ...measureSplit(candidates[0], candidates) };
+  for (const word of guessPool) {
+    const split = measureSplit(word, candidates);
+    if (isBetterSplit(split, candidateSet.has(word), best, candidateSet.has(best.word))) best = { word, ...split };
+  }
+  return { ...best, reason: explain(best.word, best, candidates.length, candidateSet.has(best.word), history) };
+}
+
+export function measureSplit(guess: string, candidates: readonly string[]): Split {
+  groupSizes.fill(0);
+  let groupCount = 0;
+  let largestGroup = 0;
+  for (const answer of candidates) {
+    const code = patternCode(guess, answer);
+    if (groupSizes[code]++ === 0) groupCount++;
+    if (groupSizes[code] > largestGroup) largestGroup = groupSizes[code];
+  }
+  return { groupCount, largestGroup };
+}
+
+function isBetterSplit(split: Split, isCandidate: boolean, best: Split, bestIsCandidate: boolean): boolean {
+  if (split.groupCount !== best.groupCount) return split.groupCount > best.groupCount;
+  if (isCandidate !== bestIsCandidate) return isCandidate;
+  return split.largestGroup < best.largestGroup;
+}
+
+function suggestCandidate(candidates: readonly string[]): Suggestion {
+  const word = candidates[0];
+  const reason =
+    candidates.length === 1
+      ? 'It is the only word that fits every clue.'
+      : `Only ${candidates.map((w) => w.toUpperCase()).join(' and ')} fit: guess one, and the other follows if it misses.`;
+  return { word, groupCount: candidates.length, largestGroup: 1, reason };
+}
+
+function explain(word: string, split: Split, candidateCount: number, isCandidate: boolean, history: GuessRecord[]): string {
+  const fresh = untestedLetters(word, history);
+  const tests = fresh.length > 0 ? `Tests ${formatLetters(fresh)} at once` : 'Rearranges known letters';
+  const splits = `splits ${candidateCount} words into ${split.groupCount} groups`;
+  const chance = isCandidate ? ', and it could be the answer' : '';
+  return `${tests}: ${splits}${chance}.`;
+}
+
+function untestedLetters(word: string, history: GuessRecord[]): string[] {
+  const tried = new Set(history.flatMap(({ word: guessed }) => [...guessed]));
+  return [...new Set(word)].filter((letter) => !tried.has(letter));
+}
+
+function formatLetters(letters: string[]): string {
+  return letters.map((letter) => letter.toUpperCase()).join(', ');
+}
