@@ -8,7 +8,9 @@ export interface ReviewEntry {
   candidatesBefore: number;
   candidatesAfter: number;
   best: Suggestion;
-  /** True when the guess split the candidates at least as well as the best guess. */
+  /** 0–1: how well the guess split the candidates compared with the best available guess. */
+  quality: number;
+  /** True when the guess was as good as the best guess. */
   matchedBest: boolean;
 }
 
@@ -27,20 +29,39 @@ export function buildReview(input: ReviewInput): ReviewEntry[] {
     const earlier = input.history.slice(0, turn);
     const best = bestGuessFor(candidates, earlier, input);
     const remaining = filterCandidates(candidates, [record]);
+    const quality = rateGuess(record.word, candidates, best);
     const entry: ReviewEntry = {
       guess: record.word,
       candidatesBefore: candidates.length,
       candidatesAfter: remaining.length,
       best,
-      matchedBest: candidates.length <= 2 ? candidates.includes(record.word) : measureSplit(record.word, candidates).groupCount >= best.groupCount,
+      quality,
+      matchedBest: quality >= 1,
     };
     candidates = remaining;
     return entry;
   });
 }
 
+/** Average guess quality as a whole percentage: rewards reasoning rather than lucky guesses. */
+export function strategyScore(entries: ReviewEntry[]): number {
+  if (entries.length === 0) return 0;
+  const total = entries.reduce((sum, entry) => sum + entry.quality, 0);
+  return Math.round((total / entries.length) * 100);
+}
+
 export function legalGuessPool(guessPool: readonly string[], history: GuessRecord[], hardMode: boolean): readonly string[] {
   return hardMode ? guessPool.filter(hardModeLegality(history)) : guessPool;
+}
+
+/**
+ * With one or two words left the best move is to guess one of them; anything else
+ * earns credit only for the words it still tells apart.
+ */
+function rateGuess(guess: string, candidates: string[], best: Suggestion): number {
+  const { groupCount } = measureSplit(guess, candidates);
+  if (candidates.length <= 2) return candidates.includes(guess) ? 1 : (groupCount - 1) / candidates.length;
+  return Math.min(1, groupCount / best.groupCount);
 }
 
 function bestGuessFor(candidates: string[], earlier: GuessRecord[], input: ReviewInput): Suggestion {

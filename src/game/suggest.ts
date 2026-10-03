@@ -1,11 +1,17 @@
 import type { GuessRecord } from './clues.ts';
 import { patternCode, WINNING_PATTERN } from './feedback.ts';
 
+/** Why a word was suggested; the UI turns this into a sentence in the player's language. */
+export type SuggestionBasis =
+  | { kind: 'only' }
+  | { kind: 'pair'; words: string[] }
+  | { kind: 'split'; freshLetters: string[]; candidateCount: number; isCandidate: boolean };
+
 export interface Suggestion {
   word: string;
   groupCount: number;
   largestGroup: number;
-  reason: string;
+  basis: SuggestionBasis;
 }
 
 interface Split {
@@ -28,7 +34,13 @@ export function suggestGuess(candidates: readonly string[], guessPool: readonly 
     const split = measureSplit(word, candidates);
     if (isBetterSplit(split, candidateSet.has(word), best, candidateSet.has(best.word))) best = { word, ...split };
   }
-  return { ...best, reason: explain(best.word, best, candidates.length, candidateSet.has(best.word), history) };
+  const basis: SuggestionBasis = {
+    kind: 'split',
+    freshLetters: untestedLetters(best.word, history),
+    candidateCount: candidates.length,
+    isCandidate: candidateSet.has(best.word),
+  };
+  return { ...best, basis };
 }
 
 export function measureSplit(guess: string, candidates: readonly string[]): Split {
@@ -50,27 +62,11 @@ function isBetterSplit(split: Split, isCandidate: boolean, best: Split, bestIsCa
 }
 
 function suggestCandidate(candidates: readonly string[]): Suggestion {
-  const word = candidates[0];
-  const reason =
-    candidates.length === 1
-      ? 'It is the only word that fits every clue.'
-      : `Only ${candidates.map((w) => w.toUpperCase()).join(' and ')} fit: guess one, and the other follows if it misses.`;
-  return { word, groupCount: candidates.length, largestGroup: 1, reason };
-}
-
-function explain(word: string, split: Split, candidateCount: number, isCandidate: boolean, history: GuessRecord[]): string {
-  const fresh = untestedLetters(word, history);
-  const tests = fresh.length > 0 ? `Tests ${formatLetters(fresh)} at once` : 'Rearranges known letters';
-  const splits = `splits ${candidateCount} words into ${split.groupCount} groups`;
-  const chance = isCandidate ? ', and it could be the answer' : '';
-  return `${tests}: ${splits}${chance}.`;
+  const basis: SuggestionBasis = candidates.length === 1 ? { kind: 'only' } : { kind: 'pair', words: [...candidates] };
+  return { word: candidates[0], groupCount: candidates.length, largestGroup: 1, basis };
 }
 
 function untestedLetters(word: string, history: GuessRecord[]): string[] {
   const tried = new Set(history.flatMap(({ word: guessed }) => [...guessed]));
   return [...new Set(word)].filter((letter) => !tried.has(letter));
-}
-
-function formatLetters(letters: string[]): string {
-  return letters.map((letter) => letter.toUpperCase()).join(', ');
 }

@@ -25,7 +25,11 @@ test.describe('after the game', () => {
     await guess(page, 'speed');
     await guess(page, 'abide');
     await page.click('#share');
-    await expect(page.locator('#toast')).toHaveText('Result copied');
+    await expect(page.locator('#result-status')).toHaveText('Result copied');
+    await expect(page.locator('#result-status')).toBeInViewport();
+    const status = (await page.locator('#result-status').boundingBox())!;
+    const topmost = await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.id, { x: status.x + 5, y: status.y + status.height / 2 });
+    expect(topmost).toBe('result-status');
     const text = await page.evaluate(() => navigator.clipboard.readText());
     expect(text).toBe('Sixth Guess · Practice · EN · 2/6\n\n⬜⬜🟪⬜🟪\n🟩🟩🟩🟩🟩');
   });

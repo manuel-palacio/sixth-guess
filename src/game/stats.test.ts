@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { emptyStats, recordResult, visibleStreak, winRate } from './stats.ts';
+import { averageStrategy, emptyStats, recordResult, recordStrategyScore, visibleStreak, winRate } from './stats.ts';
 
 describe('recordResult', () => {
   it('counts plays, wins and the guess distribution', () => {
@@ -46,5 +46,18 @@ describe('visibleStreak', () => {
 describe('winRate', () => {
   it('is zero with no games', () => {
     expect(winRate(emptyStats())).toBe(0);
+  });
+});
+
+describe('strategy average', () => {
+  it('is undefined before any reviewed game', () => {
+    expect(averageStrategy(emptyStats())).toBeUndefined();
+  });
+
+  it('averages recorded scores and survives later results', () => {
+    let stats = recordStrategyScore(emptyStats(), 80);
+    stats = recordStrategyScore(stats, 91);
+    stats = recordResult(stats, { won: true, guessCount: 3 });
+    expect(averageStrategy(stats)).toBe(86);
   });
 });

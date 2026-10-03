@@ -1,13 +1,13 @@
 import type { TileState } from '../game/feedback.ts';
 import type { Language } from '../game/language.ts';
+import type { Messages } from './i18n.ts';
 
 export const ENTER = 'Enter';
 export const BACKSPACE = 'Backspace';
 
-const STATE_LABEL: Record<TileState, string> = { correct: 'correct', present: 'in word', absent: 'not in word' };
-
 export class Keyboard {
   private keys = new Map<string, HTMLButtonElement>();
+  private messages?: Messages;
   private readonly root: HTMLElement;
   private readonly onKey: (key: string) => void;
 
@@ -22,15 +22,16 @@ export class Keyboard {
     });
   }
 
-  setLayout(language: Language): void {
+  setLayout(language: Language, messages: Messages): void {
+    this.messages = messages;
     this.keys.clear();
     const rows = language.keyboardRows.map((letters, index) => {
       const row = document.createElement('div');
       row.className = 'keyboard-row';
       const isLast = index === language.keyboardRows.length - 1;
-      if (isLast) row.append(this.createKey(ENTER, 'Enter', 'Enter', 'wide'));
+      if (isLast) row.append(this.createKey(ENTER, messages.enter, messages.enter, 'wide'));
       for (const letter of letters) row.append(this.createKey(letter, letter, letter.toUpperCase()));
-      if (isLast) row.append(this.createKey(BACKSPACE, '⌫', 'Delete letter', 'wide'));
+      if (isLast) row.append(this.createKey(BACKSPACE, '⌫', messages.deleteLetter, 'wide'));
       return row;
     });
     this.root.replaceChildren(...rows);
@@ -41,7 +42,7 @@ export class Keyboard {
       if (letter === ENTER || letter === BACKSPACE) continue;
       const state = keyStates.get(letter);
       button.dataset.state = state ?? 'unused';
-      button.setAttribute('aria-label', state ? `${letter.toUpperCase()}, ${STATE_LABEL[state]}` : letter.toUpperCase());
+      button.setAttribute('aria-label', state ? `${letter.toUpperCase()}, ${this.messages?.keyState[state]}` : letter.toUpperCase());
     }
   }
 

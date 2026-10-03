@@ -1,9 +1,12 @@
 import { deriveClues, type Clues, type GuessRecord } from './clues.ts';
 
-const ORDINALS = ['1st', '2nd', '3rd', '4th', '5th'];
+/** A broken hard-mode rule; position is zero-based. */
+export type HardModeViolation =
+  | { kind: 'misplaced'; position: number; letter: string }
+  | { kind: 'missing'; letter: string; count: number };
 
-/** Every revealed green must stay in place and every revealed letter must be reused. Returns the broken rules. */
-export function findHardModeViolations(guess: string, history: GuessRecord[]): string[] {
+/** Every revealed green must stay in place and every revealed letter must be reused. */
+export function findHardModeViolations(guess: string, history: GuessRecord[]): HardModeViolation[] {
   return violationsAgainst(guess, deriveClues(history));
 }
 
@@ -13,22 +16,15 @@ export function hardModeLegality(history: GuessRecord[]): (guess: string) => boo
   return (guess) => violationsAgainst(guess, clues).length === 0;
 }
 
-function violationsAgainst(guess: string, clues: Clues): string[] {
-  const violations: string[] = [];
+function violationsAgainst(guess: string, clues: Clues): HardModeViolation[] {
+  const violations: HardModeViolation[] = [];
   clues.greens.forEach((letter, position) => {
-    if (letter && guess[position] !== letter) {
-      violations.push(`${ORDINALS[position]} letter must be ${letter.toUpperCase()}`);
-    }
+    if (letter && guess[position] !== letter) violations.push({ kind: 'misplaced', position, letter });
   });
-  for (const [letter, required] of clues.minCounts) {
-    if (countLetter(guess, letter) < required) violations.push(describeMissingLetter(letter, required));
+  for (const [letter, count] of clues.minCounts) {
+    if (countLetter(guess, letter) < count) violations.push({ kind: 'missing', letter, count });
   }
   return violations;
-}
-
-function describeMissingLetter(letter: string, required: number): string {
-  const upper = letter.toUpperCase();
-  return required === 1 ? `Guess must contain ${upper}` : `Guess must contain ${required} ${upper}s`;
 }
 
 function countLetter(word: string, letter: string): number {

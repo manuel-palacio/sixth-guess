@@ -11,19 +11,22 @@ describe('findHardModeViolations', () => {
     expect(findHardModeViolations('zzzzz', [])).toEqual([]);
   });
 
-  it('requires greens to stay in place, naming the position', () => {
+  it('requires greens to stay in place, reporting the position', () => {
     expect(findHardModeViolations('fight', play('night', 'bolts'))).toEqual([]);
-    expect(findHardModeViolations('tubes', play('light', 'fight'))).toContain('4th letter must be H');
-    expect(findHardModeViolations('tubes', play('light', 'fight'))).toContain('2nd letter must be I');
+    expect(findHardModeViolations('tubes', play('light', 'fight'))).toContainEqual({ kind: 'misplaced', position: 3, letter: 'h' });
+    expect(findHardModeViolations('tubes', play('light', 'fight'))).toContainEqual({ kind: 'misplaced', position: 1, letter: 'i' });
   });
 
   it('requires yellows to be reused', () => {
-    expect(findHardModeViolations('blimp', play('abide', 'speed'))).toEqual(['Guess must contain E', 'Guess must contain D']);
+    expect(findHardModeViolations('blimp', play('abide', 'speed'))).toEqual([
+      { kind: 'missing', letter: 'e', count: 1 },
+      { kind: 'missing', letter: 'd', count: 1 },
+    ]);
   });
 
   it('counts repeated letters', () => {
     const history = play('geese', 'eerie');
-    expect(findHardModeViolations('beige', history)).toEqual(['Guess must contain 3 Es']);
+    expect(findHardModeViolations('beige', history)).toEqual([{ kind: 'missing', letter: 'e', count: 3 }]);
     expect(hardModeLegality(history)('geese')).toBe(true);
   });
 

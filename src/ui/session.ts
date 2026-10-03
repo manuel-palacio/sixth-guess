@@ -2,18 +2,22 @@ import { dailyAnswer, dayNumber } from '../game/daily.ts';
 import { newGame, type GameState } from '../game/game.ts';
 import type { LanguageCode } from '../game/language.ts';
 import { pickPracticeWord } from '../game/practice.ts';
-import { emptyStats, recordResult, type Stats } from '../game/stats.ts';
-import type { Mode } from './settings.ts';
+import { emptyStats, recordResult, recordStrategyScore, type Stats } from '../game/stats.ts';
+import type { Mode, PlayMode } from './settings.ts';
 import { loadJson, saveJson } from './storage.ts';
 import type { WordBank } from './wordBank.ts';
 
 export interface SavedGame extends GameState {
   /** Daily mode: which day this game belongs to. */
   day?: number;
+  /** Challenge mode: the link's code and the friend's clue. The answer stays empty until the server reveals it. */
+  challengeCode?: string;
+  clue?: string;
   statsRecorded: boolean;
+  strategyRecorded?: boolean;
 }
 
-const gameKey = (language: LanguageCode, mode: Mode) => `sixth-guess:game:${language}:${mode}`;
+const gameKey = (language: LanguageCode, mode: PlayMode) => `sixth-guess:game:${language}:${mode}`;
 const statsKey = (language: LanguageCode, mode: Mode) => `sixth-guess:stats:${language}:${mode}`;
 const practiceUsedKey = (language: LanguageCode) => `sixth-guess:practice-used:${language}`;
 
@@ -32,7 +36,22 @@ export function startPracticeGame(language: LanguageCode, bank: WordBank, hardMo
   return game;
 }
 
-export function saveGame(language: LanguageCode, mode: Mode, game: SavedGame): void {
+export interface ChallengeTicket {
+  code: string;
+  language: LanguageCode;
+  clue: string;
+}
+
+/** Resumes the same challenge after a reload; a different link starts fresh. */
+export function openChallengeGame({ code, language, clue }: ChallengeTicket, hardMode: boolean): SavedGame {
+  const saved = loadJson<SavedGame | null>(gameKey(language, 'challenge'), null);
+  if (saved && saved.challengeCode === code) return saved;
+  const game: SavedGame = { ...newGame('', hardMode), challengeCode: code, clue, statsRecorded: false };
+  saveGame(language, 'challenge', game);
+  return game;
+}
+
+export function saveGame(language: LanguageCode, mode: PlayMode, game: SavedGame): void {
   saveJson(gameKey(language, mode), game);
 }
 
@@ -40,14 +59,24 @@ export function loadStats(language: LanguageCode, mode: Mode): Stats {
   return { ...emptyStats(), ...loadJson<Partial<Stats>>(statsKey(language, mode), {}) };
 }
 
-/** Records a finished game once, however many times the page is reloaded afterwards. */
-export function recordFinishedGame(language: LanguageCode, mode: Mode, game: SavedGame): SavedGame {
+/** Records a finished game once, however many times the page is reloaded afterwards. Challenges are not counted. */
+export function recordFinishedGame(language: LanguageCode, mode: PlayMode, game: SavedGame): SavedGame {
   if (game.status === 'playing' || game.statsRecorded) return game;
+  if (mode === 'challenge') return markRecorded(language, mode, { ...game, statsRecorded: true });
   const result = { won: game.status === 'won', guessCount: game.guesses.length, day: game.day };
   saveJson(statsKey(language, mode), recordResult(loadStats(language, mode), result));
-  const recorded = { ...game, statsRecorded: true };
-  saveGame(language, mode, recorded);
-  return recorded;
+  return markRecorded(language, mode, { ...game, statsRecorded: true });
+}
+
+export function recordGameStrategy(language: LanguageCode, mode: PlayMode, game: SavedGame, score: number): SavedGame {
+  if (game.strategyRecorded || game.status === 'playing') return game;
+  if (mode !== 'challenge') saveJson(statsKey(language, mode), recordStrategyScore(loadStats(language, mode), score));
+  return markRecorded(language, mode, { ...game, strategyRecorded: true });
+}
+
+function markRecorded(language: LanguageCode, mode: PlayMode, game: SavedGame): SavedGame {
+  saveGame(language, mode, game);
+  return game;
 }
 
 function resumeDaily(saved: SavedGame | null, bank: WordBank, hardMode: boolean, today: number): SavedGame {

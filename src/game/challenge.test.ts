@@ -1,0 +1,34 @@
+import { describe, expect, it } from 'vitest';
+import { ChallengeError, createChallenge } from './challenge.ts';
+
+describe('createChallenge', () => {
+  it('normalizes the word for its language', () => {
+    expect(createChallenge({ language: 'fr', word: ' Élève ', clue: '' })).toEqual({ language: 'fr', word: 'eleve', clue: '', from: '' });
+    expect(createChallenge({ language: 'es', word: 'SEÑOR', clue: 'el profe' })).toEqual({ language: 'es', word: 'señor', clue: 'el profe', from: '' });
+  });
+
+  it('accepts words that are not in any dictionary', () => {
+    expect(createChallenge({ language: 'en', word: 'zorbo', clue: 'our dog' }).word).toBe('zorbo');
+  });
+
+  it('rejects words that are not five letters of the alphabet', () => {
+    expect(() => createChallenge({ language: 'en', word: 'four', clue: '' })).toThrow(ChallengeError);
+    expect(() => createChallenge({ language: 'en', word: 'ab1de', clue: '' })).toThrow(ChallengeError);
+    expect(() => createChallenge({ language: 'en', word: 'ab de', clue: '' })).toThrow(ChallengeError);
+  });
+
+  it('folds letters the language does not have', () => {
+    expect(createChallenge({ language: 'en', word: 'señor', clue: '' }).word).toBe('senor');
+  });
+
+  it('trims the clue and caps its length', () => {
+    expect(createChallenge({ language: 'en', word: 'crane', clue: `  ${'x'.repeat(200)}  ` }).clue).toHaveLength(80);
+  });
+});
+
+describe('challenger name', () => {
+  it('is optional, trimmed and capped', () => {
+    expect(createChallenge({ language: 'en', word: 'crane', from: '  Ana  ' }).from).toBe('Ana');
+    expect(createChallenge({ language: 'en', word: 'crane', from: 'x'.repeat(50) }).from).toHaveLength(30);
+  });
+});

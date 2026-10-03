@@ -1,7 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { GuessRejectedError, newGame, submitGuess } from './game.ts';
+import { checkGuess, GuessRejectedError, newGame, recordGuess, submitGuess } from './game.ts';
 
-const VALID = new Set(['crane', 'slate', 'abide', 'speed', 'blimp', 'aided', 'fight', 'night', 'light', 'might', 'sight', 'tight']);
+const WORDS = new Set(['crane', 'slate', 'abide', 'speed', 'blimp', 'aided', 'fight', 'night', 'light', 'might', 'sight', 'tight']);
+const VALID = (word: string) => WORDS.has(word);
+
+const rejectionOf = (attempt: () => unknown) => {
+  try {
+    attempt();
+  } catch (error) {
+    if (error instanceof GuessRejectedError) return error.reason;
+  }
+  throw new Error('Guess was not rejected');
+};
 
 describe('submitGuess', () => {
   it('records the scored guess', () => {
@@ -18,22 +28,43 @@ describe('submitGuess', () => {
     let state = newGame('abide', false);
     for (const word of ['crane', 'slate', 'speed', 'blimp', 'fight', 'night']) state = submitGuess(state, word, VALID);
     expect(state.status).toBe('lost');
-    expect(() => submitGuess(state, 'abide', VALID)).toThrow('The game is over');
+    expect(rejectionOf(() => submitGuess(state, 'abide', VALID))).toEqual({ kind: 'gameOver' });
   });
 
   it('rejects short guesses and words outside the list', () => {
-    expect(() => submitGuess(newGame('abide', false), 'abid', VALID)).toThrow('Not enough letters');
-    expect(() => submitGuess(newGame('abide', false), 'zzzzz', VALID)).toThrow(GuessRejectedError);
+    expect(rejectionOf(() => submitGuess(newGame('abide', false), 'abid', VALID))).toEqual({ kind: 'tooShort' });
+    expect(rejectionOf(() => submitGuess(newGame('abide', false), 'zzzzz', VALID))).toEqual({ kind: 'notInList' });
   });
 
   it('enforces hard mode with a precise reason', () => {
     const state = submitGuess(newGame('light', true), 'fight', VALID);
-    expect(() => submitGuess(state, 'crane', VALID)).toThrow('2nd letter must be I');
+    expect(rejectionOf(() => submitGuess(state, 'crane', VALID))).toEqual({
+      kind: 'hardMode',
+      violation: { kind: 'misplaced', position: 1, letter: 'i' },
+    });
     expect(submitGuess(state, 'night', VALID).guesses).toHaveLength(2);
+  });
+
+  it('always accepts the answer, even when it is not in the word list', () => {
+    expect(submitGuess(newGame('xyzzy', false), 'xyzzy', VALID).status).toBe('won');
   });
 
   it('does not enforce hard mode when it is off', () => {
     const state = submitGuess(newGame('light', false), 'fight', VALID);
     expect(submitGuess(state, 'crane', VALID).guesses).toHaveLength(2);
+  });
+});
+
+describe('checkGuess and recordGuess', () => {
+  it('validate without the answer and record a guess scored elsewhere', () => {
+    const hidden = newGame('', true);
+    expect(() => checkGuess(hidden, 'crane', () => true)).not.toThrow();
+    const after = recordGuess(hidden, 'fight', ['absent', 'correct', 'correct', 'correct', 'correct']);
+    expect(after.status).toBe('playing');
+    expect(rejectionOf(() => checkGuess(after, 'crane', () => true))).toEqual({
+      kind: 'hardMode',
+      violation: { kind: 'misplaced', position: 1, letter: 'i' },
+    });
+    expect(recordGuess(after, 'light', ['correct', 'correct', 'correct', 'correct', 'correct']).status).toBe('won');
   });
 });

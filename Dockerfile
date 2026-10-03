@@ -1,12 +1,20 @@
-# Build the static site, then serve dist/ with nginx on Cloud Run's $PORT (8080).
-FROM node:22-alpine AS build
+# Build the static site, then run the dependency-free Node server: static files plus the challenge API.
+FROM node:24-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --ignore-scripts
 COPY . .
 RUN npm run build
 
-FROM nginx:1.27-alpine
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /app/dist /usr/share/nginx/html
+FROM node:24-alpine
+WORKDIR /app
+ENV NODE_ENV=production
+COPY package.json ./
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/server ./server
+COPY --from=build /app/src/game ./src/game
+COPY --from=build /app/src/data ./src/data
+USER node
 EXPOSE 8080
+# Node runs the TypeScript sources directly; CHALLENGE_KEY comes from Secret Manager on Cloud Run.
+CMD ["node", "server/main.ts"]

@@ -39,10 +39,46 @@ test.describe('appearance', () => {
     await page.emulateMedia({ colorScheme: 'dark' });
     await startPracticeWith(page, 'abide');
     const background = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-    expect(await background()).toBe('rgb(18, 26, 51)');
-    await page.click('#toggle-theme');
+    expect(await background()).toBe('rgb(20, 27, 49)');
+    await page.click('#open-settings');
+    await page.selectOption('#setting-theme', 'light');
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-    expect(await background()).toBe('rgb(238, 242, 246)');
+    expect(await background()).toBe('rgb(248, 250, 253)');
+  });
+
+  test('offers a choice of themes, saved across visits', async ({ page }) => {
+    await page.emulateMedia({ colorScheme: 'light' });
+    await startPracticeWith(page, 'abide');
+    await guess(page, 'aided');
+    const look = () =>
+      page.evaluate(() => ({
+        paper: getComputedStyle(document.body).backgroundColor,
+        correct: getComputedStyle(document.querySelector('.tile')!).backgroundColor,
+      }));
+    expect(await look()).toEqual({ paper: 'rgb(248, 250, 253)', correct: 'rgb(13, 131, 112)' });
+    await page.click('#open-settings');
+    await page.locator('label.palette-option', { hasText: 'Sage' }).click();
+    await expect(page.locator('html')).toHaveAttribute('data-palette', 'sage');
+    expect(await look()).toEqual({ paper: 'rgb(245, 249, 246)', correct: 'rgb(31, 122, 160)' });
+    await page.reload();
+    await expect(page.locator('html')).toHaveAttribute('data-palette', 'sage');
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('sixth-guess:settings')!).palette)).toBe('sage');
+    await page.keyboard.press('Escape');
+    await page.click('#open-settings');
+    await expect(page.locator('input[name="palette"][value="sage"]')).toBeChecked();
+  });
+
+  test('every theme has a dark variant', async ({ page }) => {
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await startPracticeWith(page, 'abide', { palette: 'lavender' });
+    expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe('rgb(24, 20, 42)');
+  });
+
+  test('colour-blind mode overrides the theme colours', async ({ page }) => {
+    await startPracticeWith(page, 'abide', { palette: 'sage', highContrast: true });
+    await guess(page, 'aided');
+    const background = await page.locator('.tile').first().evaluate((el) => getComputedStyle(el).backgroundColor);
+    expect(background).toBe('rgb(31, 95, 214)');
   });
 
   test('colour-blind mode swaps the colours and marks tiles with a shape', async ({ page }) => {
@@ -78,6 +114,15 @@ test.describe('motion', () => {
 });
 
 test.describe('keyboard accessibility', () => {
+  test('messages raised while a dialog is open appear inside it, not behind it', async ({ page }) => {
+    await startPracticeWith(page, 'abide');
+    await guess(page, 'crane');
+    await page.click('#open-settings');
+    await page.locator('#setting-hard').check();
+    await expect(page.locator('#settings-status')).toHaveText('Hard mode changes from your next game');
+    await expect(page.locator('#settings-status')).toBeInViewport();
+  });
+
   test('settings and stats open and close with the keyboard', async ({ page }) => {
     await startPracticeWith(page, 'abide');
     await page.locator('#open-settings').focus();

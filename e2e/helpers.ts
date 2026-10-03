@@ -22,7 +22,8 @@ export async function guess(page: Page, word: string): Promise<void> {
   const index = await revealedRows(page);
   await page.keyboard.type(word);
   await page.keyboard.press('Enter');
-  await expect(page.locator('.board-row').nth(index)).toHaveAttribute('aria-label', new RegExp(`^Guess ${index + 1}: `));
+  // "Guess 2: …", "Intento 2: …", "Essai 2 : …"
+  await expect(page.locator('.board-row').nth(index)).toHaveAttribute('aria-label', new RegExp(`^\\S+ ${index + 1} ?: `));
 }
 
 export function tileStates(page: Page, row: number) {

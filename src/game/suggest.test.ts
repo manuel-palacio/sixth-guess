@@ -15,27 +15,30 @@ describe('suggestGuess', () => {
     expect(suggestion.groupCount).toBeGreaterThan(measureSplit('fight', candidates).groupCount);
   });
 
-  it('explains which untested letters the suggestion probes', () => {
+  it('reports which untested letters the suggestion probes', () => {
     const history = [{ word: 'bight', states: scoreGuess('bight', 'night') }];
     const suggestion = suggestGuess(IGHT_TRAP, ['flmns', ...IGHT_TRAP], history);
     expect(suggestion.word).toBe('flmns');
-    expect(suggestion.reason).toBe('Tests F, L, M, N, S at once: splits 6 words into 6 groups.');
+    expect(suggestion.groupCount).toBe(6);
+    expect(suggestion.basis).toEqual({ kind: 'split', freshLetters: ['f', 'l', 'm', 'n', 's'], candidateCount: 6, isCandidate: false });
   });
 
   it('prefers a candidate when it splits equally well', () => {
     const suggestion = suggestGuess(['abide', 'aside', 'crane'], ['zzzzz', 'abide', 'crane'], []);
     expect(['abide', 'crane']).toContain(suggestion.word);
-    expect(suggestion.reason).toContain('could be the answer');
+    expect(suggestion.basis).toMatchObject({ kind: 'split', isCandidate: true });
   });
 
   it('names the only remaining word', () => {
     const suggestion = suggestGuess(['crane'], ['zzzzz'], []);
     expect(suggestion.word).toBe('crane');
-    expect(suggestion.reason).toBe('It is the only word that fits every clue.');
+    expect(suggestion.basis).toEqual({ kind: 'only' });
   });
 
   it('goes for one of two remaining words', () => {
-    expect(suggestGuess(['light', 'might'], ['zzzzz'], []).word).toBe('light');
+    const suggestion = suggestGuess(['light', 'might'], ['zzzzz'], []);
+    expect(suggestion.word).toBe('light');
+    expect(suggestion.basis).toEqual({ kind: 'pair', words: ['light', 'might'] });
   });
 
   it('restricts itself to the pool it is given, such as hard-mode legal guesses', () => {
