@@ -93,6 +93,9 @@ interface StaticText {
   challengeBadWord: string;
   serverUnavailable: string;
   playAnother: string;
+  newWord: string;
+  nextWord: string;
+  confirmGiveUp: string;
   practiceWhileWaiting: string;
   offDictionary: string;
   customWord: string;
@@ -230,6 +233,9 @@ const EN: Messages = {
   challengeBadWord: 'The word must be exactly five letters',
   serverUnavailable: 'Challenges need a connection. Try again in a moment.',
   playAnother: 'Play another',
+  newWord: 'New word',
+  nextWord: 'Next word',
+  confirmGiveUp: 'Give up? Tap again',
   practiceWhileWaiting: 'Practice while you wait',
   offDictionary: 'This word may not be in the dictionary, so the scratchpad cannot count it. Any five letters are accepted.',
   customWord: 'Custom word',
@@ -363,6 +369,9 @@ const ES: Messages = {
   challengeBadWord: 'La palabra debe tener exactamente cinco letras',
   serverUnavailable: 'Los retos necesitan conexión. Inténtalo de nuevo en un momento.',
   playAnother: 'Jugar otra',
+  newWord: 'Nueva palabra',
+  nextWord: 'Siguiente palabra',
+  confirmGiveUp: '¿Te rindes? Pulsa otra vez',
   practiceWhileWaiting: 'Practica mientras esperas',
   offDictionary: 'Puede que esta palabra no esté en el diccionario, así que la libreta no la cuenta. Se acepta cualquier combinación de cinco letras.',
   customWord: 'Palabra propia',
@@ -496,6 +505,9 @@ const FR: Messages = {
   challengeBadWord: 'Le mot doit faire exactement cinq lettres',
   serverUnavailable: 'Les défis ont besoin d’une connexion. Réessayez dans un instant.',
   playAnother: 'Rejouer',
+  newWord: 'Nouveau mot',
+  nextWord: 'Mot suivant',
+  confirmGiveUp: 'Abandonner ? Touchez encore',
   practiceWhileWaiting: 'S’entraîner en attendant',
   offDictionary: 'Ce mot n’est peut-être pas dans le dictionnaire : le brouillon ne peut pas le compter. Toute suite de cinq lettres est acceptée.',
   customWord: 'Mot perso',

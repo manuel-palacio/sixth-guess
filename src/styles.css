@@ -378,8 +378,41 @@ input {
   container-type: size;
 }
 
-.game-caption {
+.caption-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 12px;
   margin: 0 0 6px;
+}
+
+.new-word {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--present);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.new-word.confirming {
+  color: var(--present);
+}
+
+.new-word.finished {
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--correct);
+  color: var(--on-correct);
+  text-decoration: none;
+}
+
+.game-caption {
+  margin: 0;
   font-size: 0.85rem;
   color: var(--ink-soft);
 }

@@ -3,7 +3,7 @@ import { ChallengeError, type Verdict } from '../game/challenge.ts';
 import { deriveClues, letterPool } from '../game/clues.ts';
 import { dayNumber, msUntilNextDay } from '../game/daily.ts';
 import { WORD_LENGTH } from '../game/feedback.ts';
-import { checkGuess, GuessRejectedError, MAX_GUESSES, recordGuess, submitGuess } from '../game/game.ts';
+import { abandonGame, checkGuess, GuessRejectedError, MAX_GUESSES, recordGuess, submitGuess } from '../game/game.ts';
 import { LANGUAGE_CODES, LANGUAGES, normalizeWord, type LanguageCode } from '../game/language.ts';
 import { legalGuessPool, strategyScore } from '../game/review.ts';
 import { buildShareText } from '../game/share.ts';
@@ -44,6 +44,9 @@ const TOAST_MS = 2200;
 const RESULT_DELAY_MS = 1400;
 const DESKTOP_QUERY = '(min-width: 900px)';
 const NARROW_QUERY = '(max-width: 479px)';
+const GIVE_UP_CONFIRM_MS = 4000;
+/** Controls whose mouse clicks hand focus back to the game, so the next Enter submits a guess. */
+const POINTER_RELEASED_CONTROLS = 'header button, #new-word';
 
 export class App {
   private settings: Settings = loadSettings();
@@ -57,6 +60,7 @@ export class App {
   private revealing = false;
   private candidates: string[] = [];
   private toastTimer = 0;
+  private giveUpTimer = 0;
   private readonly board = new Board(byId('board'));
   private readonly keyboard = new Keyboard(byId('keyboard'), (key) => this.handleKey(key));
   private readonly scratchpad = new Scratchpad(() => void this.suggest());
@@ -75,6 +79,7 @@ export class App {
     this.bindHeader();
     this.bindSettings();
     this.bindChallengeWelcome();
+    byId('new-word').addEventListener('click', () => this.requestNewWord());
     this.bindResultDialog();
     this.bindScratchpadLayout();
     await this.loadGame();
@@ -167,7 +172,7 @@ export class App {
     if (event.ctrlKey || event.metaKey || event.altKey || document.querySelector('dialog[open]')) return;
     const target = event.target as HTMLElement;
     if (target.closest('input, select, textarea')) return;
-    if (event.key === 'Tab') headerUsedWithPointer = false;
+    if (event.key === 'Tab') controlsUsedWithPointer = false;
     if (event.key === ENTER && pressesVisibleControl(target)) return;
     const key = event.key === ENTER || event.key === BACKSPACE ? event.key : normalizeWord(this.settings.language, event.key);
     if (key === ENTER || key === BACKSPACE || this.isLetter(key)) {
@@ -261,6 +266,7 @@ export class App {
     });
     this.scratchpad.setSuggestEnabled(this.game.status === 'playing');
     byId('game-caption').textContent = this.messages.caption(this.playMode, this.game.day, this.game.hardMode);
+    this.renderNewWordButton();
     this.renderClue();
     this.renderHeaderState();
   }
@@ -268,6 +274,42 @@ export class App {
   /** A friend may pick any valid word, not just an everyday answer, so challenges count against the full guess list. */
   private candidateUniverse(): readonly string[] {
     return this.playMode === 'challenge' ? this.bank.guesses : this.bank.answers;
+  }
+
+  /** In practice there is always a way on: after a finished game, closing the result must not leave a dead board. */
+  private renderNewWordButton(): void {
+    const button = byId('new-word');
+    const finished = this.game.status !== 'playing';
+    button.hidden = this.playMode !== 'practice';
+    button.textContent = finished ? this.messages.nextWord : this.messages.newWord;
+    button.classList.toggle('finished', finished);
+    button.classList.remove('confirming');
+    clearTimeout(this.giveUpTimer);
+  }
+
+  /** A fresh or finished board moves straight on; with a game in progress, a second tap confirms giving up. */
+  private requestNewWord(): void {
+    const button = byId('new-word');
+    const inProgress = this.game.status === 'playing' && this.game.guesses.length > 0;
+    if (inProgress && !button.classList.contains('confirming')) {
+      button.textContent = this.messages.confirmGiveUp;
+      button.classList.add('confirming');
+      this.giveUpTimer = window.setTimeout(() => this.renderNewWordButton(), GIVE_UP_CONFIRM_MS);
+      return;
+    }
+    if (inProgress) this.giveUp();
+    this.startNextPracticeGame();
+  }
+
+  private giveUp(): void {
+    this.game = recordFinishedGame(this.settings.language, 'practice', { ...this.game, ...abandonGame(this.game) });
+    this.showToast(this.messages.wordWas(this.game.answer.toUpperCase()));
+  }
+
+  private startNextPracticeGame(): void {
+    this.game = startPracticeGame(this.settings.language, this.bank, this.settings.hardMode);
+    this.input = '';
+    this.renderAll();
   }
 
   private renderClue(): void {
@@ -555,9 +597,7 @@ export class App {
       await this.openCurrentGame();
       if (this.game.status === 'playing') return;
     }
-    this.game = startPracticeGame(this.settings.language, this.bank, this.settings.hardMode);
-    this.input = '';
-    this.renderAll();
+    this.startNextPracticeGame();
   }
 }
 
@@ -570,18 +610,18 @@ function pressesVisibleControl(target: HTMLElement): boolean {
   if (control === null || !control.checkVisibility()) return false;
   // Closing a dialog hands focus back to the header button that opened it; after a mouse click that
   // Enter is meant for the guess, not the button.
-  return !(headerUsedWithPointer && control.closest('header'));
+  return !(controlsUsedWithPointer && control.matches(POINTER_RELEASED_CONTROLS));
 }
 
-/** Whether the header was last used with a mouse or touch; Tab switches back to keyboard behaviour. */
-let headerUsedWithPointer = false;
+/** Whether those controls were last used with a mouse or touch; Tab switches back to keyboard behaviour. */
+let controlsUsedWithPointer = false;
 
 /** After a mouse or touch click, hand focus back so a physical Enter submits the guess instead of re-clicking. */
 function releasePointerFocus(event: MouseEvent): void {
-  const button = (event.target as HTMLElement).closest('header button');
+  const button = (event.target as HTMLElement).closest(POINTER_RELEASED_CONTROLS);
   if (!(button instanceof HTMLElement)) return;
-  headerUsedWithPointer = event.detail > 0;
-  if (headerUsedWithPointer) button.blur();
+  controlsUsedWithPointer = event.detail > 0;
+  if (controlsUsedWithPointer) button.blur();
 }
 
 async function copyText(text: string): Promise<boolean> {

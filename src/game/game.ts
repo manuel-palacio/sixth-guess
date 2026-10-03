@@ -37,6 +37,11 @@ export function submitGuess(state: GameState, guess: string, isValidGuess: (word
   return recordGuess(state, guess, scoreGuess(guess, state.answer));
 }
 
+/** Giving up a game in progress counts as a loss. */
+export function abandonGame(state: GameState): GameState {
+  return state.status === 'playing' ? { ...state, status: 'lost' } : state;
+}
+
 /** Throws GuessRejectedError when the guess breaks a rule that can be checked without the answer. */
 export function checkGuess(state: GameState, guess: string, isValidGuess: (word: string) => boolean): void {
   if (state.status !== 'playing') throw new GuessRejectedError({ kind: 'gameOver' });

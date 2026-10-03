@@ -37,7 +37,10 @@
 
     <main class="layout">
       <section class="board-area" aria-label="Game board" data-i18n-aria="gameBoard">
-        <p class="game-caption" id="game-caption"></p>
+        <div class="caption-row">
+          <p class="game-caption" id="game-caption"></p>
+          <button type="button" class="new-word" id="new-word" data-i18n="newWord" hidden></button>
+        </div>
         <p class="challenge-clue" id="challenge-clue" hidden></p>
         <div class="board" id="board"></div>
         <div class="toast" id="toast" role="alert" aria-live="assertive"></div>

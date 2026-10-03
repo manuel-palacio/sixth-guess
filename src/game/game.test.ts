@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkGuess, GuessRejectedError, newGame, recordGuess, submitGuess } from './game.ts';
+import { abandonGame, checkGuess, GuessRejectedError, newGame, recordGuess, submitGuess } from './game.ts';
 
 const WORDS = new Set(['crane', 'slate', 'abide', 'speed', 'blimp', 'aided', 'fight', 'night', 'light', 'might', 'sight', 'tight']);
 const VALID = (word: string) => WORDS.has(word);
@@ -66,5 +66,19 @@ describe('checkGuess and recordGuess', () => {
       violation: { kind: 'misplaced', position: 1, letter: 'i' },
     });
     expect(recordGuess(after, 'light', ['correct', 'correct', 'correct', 'correct', 'correct']).status).toBe('won');
+  });
+});
+
+describe('abandonGame', () => {
+  it('ends a game in progress as lost, keeping its guesses', () => {
+    const state = submitGuess(newGame('abide', false), 'speed', VALID);
+    const abandoned = abandonGame(state);
+    expect(abandoned.status).toBe('lost');
+    expect(abandoned.guesses).toEqual(state.guesses);
+  });
+
+  it('leaves a finished game alone', () => {
+    const won = submitGuess(newGame('abide', false), 'abide', VALID);
+    expect(abandonGame(won)).toBe(won);
   });
 });
