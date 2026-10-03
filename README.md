@@ -69,6 +69,12 @@ Sources:
 
 ## Deploy (Cloud Run)
 
+Pushing to `main` deploys automatically: `.github/workflows/deploy.yml` type-checks, runs the unit and
+Playwright tests, and only then deploys and smoke-tests the live site. Pull requests run the tests only.
+GitHub signs in to Google Cloud through Workload Identity Federation (no stored keys): the
+`github-deployer` service account in `sixth-guess-game` accepts tokens from this repository's `main`
+branch only. Deploying by hand still works:
+
 The `Dockerfile` builds the site and runs the Node server on port 8080. The key lives in Secret Manager
 (`challenge-key` in `sixth-guess-game`); the Firestore database is the project's `(default)` database in
 `europe-north1`, used through the service's own account (`roles/datastore.user`).
