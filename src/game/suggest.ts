@@ -20,6 +20,8 @@ interface Split {
 }
 
 const groupSizes = new Uint16Array(WINNING_PATTERN + 1);
+/** Above this many candidates the search ranks guesses on an even sample; the winner is then measured exactly. */
+export const SEARCH_SAMPLE_SIZE = 300;
 
 /**
  * The guess that splits the candidates into the most distinct feedback patterns.
@@ -29,11 +31,13 @@ export function suggestGuess(candidates: readonly string[], guessPool: readonly 
   if (candidates.length === 0) throw new Error('No candidates fit the clues');
   if (candidates.length <= 2) return suggestCandidate(candidates);
   const candidateSet = new Set(candidates);
-  let best = { word: candidates[0], ...measureSplit(candidates[0], candidates) };
+  const sample = evenSample(candidates, SEARCH_SAMPLE_SIZE);
+  let best = { word: candidates[0], ...measureSplit(candidates[0], sample) };
   for (const word of guessPool) {
-    const split = measureSplit(word, candidates);
+    const split = measureSplit(word, sample);
     if (isBetterSplit(split, candidateSet.has(word), best, candidateSet.has(best.word))) best = { word, ...split };
   }
+  if (sample !== candidates) best = { word: best.word, ...measureSplit(best.word, candidates) };
   const basis: SuggestionBasis = {
     kind: 'split',
     freshLetters: untestedLetters(best.word, history),
@@ -53,6 +57,13 @@ export function measureSplit(guess: string, candidates: readonly string[]): Spli
     if (groupSizes[code] > largestGroup) largestGroup = groupSizes[code];
   }
   return { groupCount, largestGroup };
+}
+
+/** Deterministic, so the browser and the server reach the same suggestion. */
+function evenSample(words: readonly string[], size: number): readonly string[] {
+  if (words.length <= size) return words;
+  const step = words.length / size;
+  return Array.from({ length: size }, (_, index) => words[Math.floor(index * step)]);
 }
 
 function isBetterSplit(split: Split, isCandidate: boolean, best: Split, bestIsCandidate: boolean): boolean {

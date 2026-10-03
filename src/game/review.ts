@@ -29,7 +29,9 @@ export function buildReview(input: ReviewInput): ReviewEntry[] {
     const earlier = input.history.slice(0, turn);
     const best = bestGuessFor(candidates, earlier, input);
     const remaining = filterCandidates(candidates, [record]);
-    const quality = rateGuess(record.word, candidates, best);
+    // Solving it is the best possible move, whatever the split would have been.
+    const solved = record.states.every((state) => state === 'correct');
+    const quality = solved ? 1 : rateGuess(record.word, candidates, best);
     const entry: ReviewEntry = {
       guess: record.word,
       candidatesBefore: candidates.length,

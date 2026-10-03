@@ -48,6 +48,16 @@ describe('guess quality', () => {
   });
 });
 
+describe('a winning guess', () => {
+  it('always counts as the best move', () => {
+    // With FIGHT, LIGHT and NIGHT left, FLMNS would split them better than NIGHT does, but NIGHT wins.
+    const answers = ['fight', 'light', 'night'];
+    const review = buildReview({ answers, guessPool: [...answers, 'flmns'], history: play('night', 'night'), hardMode: false, opener: 'flmns' });
+    expect(review[0].quality).toBe(1);
+    expect(review[0].matchedBest).toBe(true);
+  });
+});
+
 describe('strategyScore', () => {
   const entry = (quality: number) => ({ quality }) as ReviewEntry;
 

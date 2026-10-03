@@ -31,5 +31,5 @@ export function tileStates(page: Page, row: number) {
 }
 
 function revealedRows(page: Page): Promise<number> {
-  return page.locator('.board-row[aria-label*=":"]').count();
+  return page.locator('.board-row:has(.tile[data-state="correct"], .tile[data-state="present"], .tile[data-state="absent"])').count();
 }

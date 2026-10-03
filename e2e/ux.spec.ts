@@ -138,6 +138,21 @@ test.describe('keyboard accessibility', () => {
     await guess(page, 'crane');
   });
 
+  test('Enter still submits after closing a dialog that was opened with the mouse', async ({ page }) => {
+    await startPracticeWith(page, 'abide');
+    await page.click('#open-settings');
+    await page.keyboard.press('Escape');
+    await guess(page, 'crane');
+  });
+
+  test('closing a dialog opened from the keyboard returns focus to its button', async ({ page }) => {
+    await startPracticeWith(page, 'abide');
+    await page.locator('#open-settings').focus();
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#open-settings')).toBeFocused();
+  });
+
   test('Enter on a focused header button does not submit the guess', async ({ page }) => {
     await startPracticeWith(page, 'abide');
     await page.keyboard.type('crane');

@@ -2,13 +2,15 @@ import type { Connect, Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { defineConfig } from 'vitest/config';
 import { createChallengeApi } from './server/challengeApi.ts';
+import { ChallengeService } from './server/challengeService.ts';
 import { localChallengeKey } from './server/key.ts';
-import { loadValidGuesses } from './server/wordSets.ts';
+import { MemoryStore } from './server/memoryStore.ts';
+import { loadWordBanks } from './server/wordSets.ts';
 
 /** Mounts the challenge API on the dev and preview servers, so local play and e2e tests hit real endpoints. */
 function challengeApiPlugin(): Plugin {
   const middleware = (): Connect.NextHandleFunction => {
-    const api = createChallengeApi(localChallengeKey(), loadValidGuesses());
+    const api = createChallengeApi(new ChallengeService(new MemoryStore(), loadWordBanks(), localChallengeKey()));
     return (request, response, next) => {
       api(request, response).then((handled) => handled || next(), next);
     };

@@ -4,8 +4,12 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { extname, normalize, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createChallengeApi } from './challengeApi.ts';
+import { ChallengeService } from './challengeService.ts';
+import { FirestoreStore } from './firestoreStore.ts';
 import { challengeKeyFromEnvironment } from './key.ts';
-import { loadValidGuesses } from './wordSets.ts';
+import { MemoryStore } from './memoryStore.ts';
+import type { ChallengeStore } from './store.ts';
+import { loadWordBanks } from './wordSets.ts';
 
 const DIST = fileURLToPath(new URL('../dist/', import.meta.url));
 const PORT = Number(process.env.PORT ?? 8080);
@@ -22,7 +26,9 @@ const CONTENT_TYPES: Record<string, string> = {
   '.woff': 'font/woff',
 };
 
-const api = createChallengeApi(challengeKeyFromEnvironment(), loadValidGuesses());
+// Firestore in production; STORE=memory runs the built server locally without Google credentials.
+const store: ChallengeStore = process.env.STORE === 'memory' ? new MemoryStore() : new FirestoreStore();
+const api = createChallengeApi(new ChallengeService(store, loadWordBanks(), challengeKeyFromEnvironment()));
 
 createServer((request, response) => {
   handle(request, response).catch((error: unknown) => {

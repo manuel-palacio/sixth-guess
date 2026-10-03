@@ -28,6 +28,7 @@
       </button>
       <button type="button" class="icon-button" id="open-challenge" aria-label="Challenge a friend" data-i18n-aria="challengeTitle">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 3 10.5 13.5M21 3l-6.5 18-4-7.5L3 9.5 21 3z" /></svg>
+        <span class="badge" id="challenge-badge" hidden></span>
       </button>
       <button type="button" class="icon-button" id="open-settings" aria-label="Settings" data-i18n-aria="settings">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9" /><circle cx="15" cy="7" r="2" /><circle cx="9" cy="17" r="2" /></svg>
@@ -148,6 +149,12 @@
           <li><span class="mini-tile" data-state="absent">T</span> <span data-i18n="howAbsent"></span></li>
         </ul>
         <p class="welcome-note" id="welcome-any-letters" data-i18n="welcomeAnyLetters" hidden></p>
+        <p class="welcome-series" id="welcome-series" hidden></p>
+        <label class="welcome-name">
+          <span data-i18n="yourName"></span>
+          <input id="welcome-name" maxlength="30" autocomplete="given-name" aria-describedby="welcome-name-help" />
+          <small id="welcome-name-help"></small>
+        </label>
         <button class="primary-button welcome-start" id="welcome-start" data-i18n="welcomeStart" autofocus></button>
       </form>
     </dialog>
@@ -161,12 +168,21 @@
         <p class="hint" data-i18n="challengeHelp"></p>
         <form id="challenge-form" class="challenge-form" novalidate>
           <label>
+            <span data-i18n="challengeLanguage"></span>
+            <select id="challenge-language" name="language"></select>
+          </label>
+          <label>
             <span data-i18n="challengeWord"></span>
             <input id="challenge-word" name="word" maxlength="10" autocomplete="off" autocapitalize="characters" spellcheck="false" required />
           </label>
           <label>
             <span data-i18n="challengeClue"></span>
             <input id="challenge-clue-input" name="clue" maxlength="80" autocomplete="off" />
+          </label>
+          <label>
+            <span data-i18n="challengeStory"></span>
+            <textarea id="challenge-story" name="story" maxlength="280" rows="2" aria-describedby="challenge-story-help"></textarea>
+            <small id="challenge-story-help" data-i18n="challengeStoryHelp"></small>
           </label>
           <label>
             <span data-i18n="challengeFrom"></span>
@@ -176,6 +192,10 @@
         </form>
         <p class="form-status" id="challenge-status" role="status" data-dialog-status></p>
         <input class="challenge-link" id="challenge-link" readonly hidden aria-label="Link" />
+        <section class="sent-challenges" aria-labelledby="sent-title">
+          <h3 id="sent-title" data-i18n="sentTitle"></h3>
+          <ol class="sent-list" id="sent-list"></ol>
+        </section>
       </div>
     </dialog>
 
@@ -194,13 +214,23 @@
       </form>
       <div class="sheet-body">
         <p class="result-answer" id="result-answer"></p>
+        <section class="result-story" id="result-story" hidden>
+          <h3 data-i18n="storyTitle"></h3>
+          <p id="result-story-text"></p>
+        </section>
         <div class="result-actions">
+          <button type="button" class="primary-button" id="challenge-back" hidden></button>
           <button type="button" class="primary-button" id="share" data-i18n="share">Share result</button>
           <button type="button" class="secondary-button" id="next-game">Play another</button>
         </div>
         <p class="form-status" id="result-status" role="status" data-dialog-status></p>
         <p class="next-daily" id="next-daily"></p>
         <p class="strategy-score" id="strategy-score"></p>
+        <section class="result-series" id="result-series" hidden></section>
+        <section id="result-scoreboard" hidden>
+          <h3 data-i18n="scoreboardTitle"></h3>
+          <ol class="scoreboard" id="scoreboard-list"></ol>
+        </section>
         <button type="button" class="link-button" id="challenge-this-word" data-i18n="challengeThisWord"></button>
         <section>
           <h3 data-i18n="reviewTitle">Your game, guess by guess</h3>

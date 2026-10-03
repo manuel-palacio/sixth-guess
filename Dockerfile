@@ -1,4 +1,4 @@
-# Build the static site, then run the dependency-free Node server: static files plus the challenge API.
+# Build the static site, then run the Node server: static files plus the challenge API (Firestore-backed).
 FROM node:24-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
@@ -9,7 +9,8 @@ RUN npm run build
 FROM node:24-alpine
 WORKDIR /app
 ENV NODE_ENV=production
-COPY package.json ./
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/server ./server
 COPY --from=build /app/src/game ./src/game

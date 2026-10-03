@@ -1,5 +1,6 @@
 import type { TileState } from './feedback.ts';
 import type { GameStatus } from './game.ts';
+import type { PlayerResult, SeriesScore } from './series.ts';
 import { isPlayableWord, normalizeWord, type LanguageCode } from './language.ts';
 
 export interface Challenge {
@@ -17,14 +18,29 @@ export interface ChallengeDraft {
   from?: string;
 }
 
-/** What the server returns for a friend's challenge: the word itself stays hidden until the game ends. */
+/**
+ * What the server returns for a friend's challenge. The word, story, scoreboard and series score
+ * only arrive once the game has ended.
+ */
 export interface Verdict {
   results: TileState[][];
   status: GameStatus;
   answer?: string;
+  story?: string;
+  scoreboard?: PlayerResult[];
+  series?: SeriesScore;
 }
 
-export class ChallengeError extends Error {}
+export type ChallengeFailure = 'badWord' | 'broken';
+
+export class ChallengeError extends Error {
+  readonly reason: ChallengeFailure;
+
+  constructor(reason: ChallengeFailure) {
+    super(reason === 'badWord' ? 'The word must be exactly five letters' : 'This challenge link is broken');
+    this.reason = reason;
+  }
+}
 
 const MAX_CLUE_LENGTH = 80;
 const MAX_NAME_LENGTH = 30;
@@ -32,7 +48,7 @@ const MAX_NAME_LENGTH = 30;
 /** Any five letters of the language's alphabet; the word need not be in a dictionary. */
 export function createChallenge({ language, word: rawWord, clue = '', from = '' }: ChallengeDraft): Challenge {
   const word = normalizeWord(language, rawWord.trim());
-  if (!isPlayableWord(language, word)) throw new ChallengeError('The word must be exactly five letters');
+  if (!isPlayableWord(language, word)) throw new ChallengeError('badWord');
   return { language, word, clue: trimTo(clue, MAX_CLUE_LENGTH), from: trimTo(from, MAX_NAME_LENGTH) };
 }
 

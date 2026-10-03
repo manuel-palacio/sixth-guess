@@ -1,5 +1,5 @@
 import { filterCandidates } from '../game/candidates.ts';
-import { ChallengeError, createChallenge, type ChallengeDraft } from '../game/challenge.ts';
+import { ChallengeError, type Verdict } from '../game/challenge.ts';
 import { deriveClues, letterPool } from '../game/clues.ts';
 import { dayNumber, msUntilNextDay } from '../game/daily.ts';
 import { WORD_LENGTH } from '../game/feedback.ts';
@@ -11,13 +11,15 @@ import { Board } from './board.ts';
 import {
   challengeCodeFromUrl,
   ChallengeUnavailableError,
-  challengeUrl,
   clearChallengeFromUrl,
-  createChallengeCode,
   fetchChallenge,
+  fetchScoreboard,
   judgeRemotely,
   type RemoteChallenge,
 } from './challengeClient.ts';
+import { ChallengeMaker } from './challengeMaker.ts';
+import { describeSeries, renderScoreboard } from './challengeViews.ts';
+import { playerId, playerName, rememberPlayerName } from './player.ts';
 import { renderReview, renderStats, type StatsSection } from './dialogs.ts';
 import { byId } from './dom.ts';
 import { applyStaticText, describeRejection, describeTiles, messagesFor, type Messages } from './i18n.ts';
@@ -47,6 +49,8 @@ export class App {
   private settings: Settings = loadSettings();
   private playMode: PlayMode = this.settings.mode;
   private challenge?: RemoteChallenge;
+  /** The player's own language while a friend's challenge borrows another one; never overwritten by it. */
+  private homeLanguage?: LanguageCode;
   private bank!: WordBank;
   private game!: SavedGame;
   private input = '';
@@ -57,13 +61,20 @@ export class App {
   private readonly keyboard = new Keyboard(byId('keyboard'), (key) => this.handleKey(key));
   private readonly scratchpad = new Scratchpad(() => void this.suggest());
   private readonly solver = new Solver();
+  private readonly maker = new ChallengeMaker({
+    messages: () => this.messages,
+    describeFailure: (error) => this.describeChallengeFailure(error),
+    copyText,
+  });
+  /** The server's final word on the challenge just finished: story, scoreboard and series. */
+  private lastVerdict?: Verdict;
 
   async start(): Promise<void> {
     const linkProblem = await this.adoptChallengeFromUrl();
     this.applyAppearance();
     this.bindHeader();
     this.bindSettings();
-    this.bindChallengeForm();
+    this.bindChallengeWelcome();
     this.bindResultDialog();
     this.bindScratchpadLayout();
     await this.loadGame();
@@ -71,6 +82,7 @@ export class App {
     document.addEventListener('keydown', (event) => this.handlePhysicalKey(event));
     document.addEventListener('click', releasePointerFocus);
     document.addEventListener('visibilitychange', () => this.rollOverDailyIfStale());
+    void this.maker.refreshBadge();
   }
 
   private get messages(): Messages {
@@ -88,6 +100,7 @@ export class App {
       return this.describeChallengeFailure(error);
     }
     this.playMode = 'challenge';
+    this.homeLanguage = this.settings.language;
     this.settings = { ...this.settings, language: this.challenge.language };
     return undefined;
   }
@@ -99,6 +112,12 @@ export class App {
   }
 
   private async loadGame(): Promise<void> {
+    await this.openCurrentGame();
+    if (this.game.status !== 'playing') this.openResult();
+    else if (this.challenge && this.game.guesses.length === 0) this.openChallengeWelcome(this.challenge);
+  }
+
+  private async openCurrentGame(): Promise<void> {
     const { language, hardMode } = this.settings;
     this.bank = await loadWordBank(language);
     this.game =
@@ -108,8 +127,6 @@ export class App {
     this.input = '';
     this.applyLanguage();
     this.renderAll();
-    if (this.game.status !== 'playing') this.openResult();
-    else if (this.challenge && this.game.guesses.length === 0) this.openChallengeWelcome(this.challenge);
   }
 
   /** Someone opening a friend's link may never have played, so say plainly what is going on. */
@@ -120,7 +137,20 @@ export class App {
     clue.hidden = !challenge.clue;
     clue.textContent = challenge.clue ? messages.clue(challenge.clue) : '';
     byId('welcome-any-letters').hidden = !challenge.anyLetters;
+    const series = byId('welcome-series');
+    series.hidden = !challenge.series;
+    series.textContent = challenge.series ? describeSeries(challenge.series, this.viewContext()) : '';
+    byId<HTMLInputElement>('welcome-name').value = playerName();
+    byId('welcome-name-help').textContent = messages.welcomeNameHelp(challenge.from || messages.someone);
     byId<HTMLDialogElement>('welcome-dialog').showModal();
+  }
+
+  private bindChallengeWelcome(): void {
+    byId('welcome-dialog').addEventListener('close', () => rememberPlayerName(byId<HTMLInputElement>('welcome-name').value));
+  }
+
+  private viewContext() {
+    return { messages: this.messages, playerId: playerId() };
   }
 
   private applyLanguage(): void {
@@ -137,6 +167,7 @@ export class App {
     if (event.ctrlKey || event.metaKey || event.altKey || document.querySelector('dialog[open]')) return;
     const target = event.target as HTMLElement;
     if (target.closest('input, select, textarea')) return;
+    if (event.key === 'Tab') headerUsedWithPointer = false;
     if (event.key === ENTER && pressesVisibleControl(target)) return;
     const key = event.key === ENTER || event.key === BACKSPACE ? event.key : normalizeWord(this.settings.language, event.key);
     if (key === ENTER || key === BACKSPACE || this.isLetter(key)) {
@@ -179,9 +210,11 @@ export class App {
   /** The friend's word lives only on the server, which scores the whole history and reveals the answer at the end. */
   private async judgeChallengeGuess(challenge: RemoteChallenge): Promise<SavedGame> {
     checkGuess(this.game, this.input, () => true);
-    const verdict = await judgeRemotely(challenge.code, [...this.game.guesses.map(({ word }) => word), this.input]);
+    const guesses = [...this.game.guesses.map(({ word }) => word), this.input];
+    const verdict = await judgeRemotely(challenge.code, guesses, { playerId: playerId(), name: playerName() });
     const recorded = recordGuess(this.game, this.input, verdict.results[verdict.results.length - 1]);
-    return { ...this.game, ...recorded, answer: verdict.answer ?? '' };
+    if (verdict.status !== 'playing') this.lastVerdict = verdict;
+    return { ...this.game, ...recorded, answer: verdict.answer ?? '', story: verdict.story };
   }
 
   private rejectGuess(error: unknown, row: number): void {
@@ -310,8 +343,7 @@ export class App {
   }
 
   private openChallengeMaker(): void {
-    byId('challenge-status').textContent = '';
-    byId<HTMLDialogElement>('challenge-dialog').showModal();
+    this.maker.open(this.settings.language);
   }
 
   private async selectMode(mode: Mode): Promise<void> {
@@ -329,7 +361,10 @@ export class App {
 
   private leaveChallenge(nextMode: Mode): void {
     if (this.playMode === 'challenge') clearChallengeFromUrl();
+    if (this.homeLanguage) this.settings = { ...this.settings, language: this.homeLanguage };
+    this.homeLanguage = undefined;
     this.challenge = undefined;
+    this.lastVerdict = undefined;
     this.playMode = nextMode;
   }
 
@@ -360,7 +395,7 @@ export class App {
 
   private async changeSettings(changes: Partial<Settings>): Promise<void> {
     this.settings = { ...this.settings, ...changes };
-    saveSettings(this.settings);
+    saveSettings(this.homeLanguage ? { ...this.settings, language: this.homeLanguage } : this.settings);
     this.applyAppearance();
   }
 
@@ -395,34 +430,6 @@ export class App {
 
   // Challenges
 
-  private bindChallengeForm(): void {
-    const form = byId<HTMLFormElement>('challenge-form');
-    form.addEventListener('submit', (event) => {
-      event.preventDefault();
-      const draft = {
-        word: byId<HTMLInputElement>('challenge-word').value,
-        clue: byId<HTMLInputElement>('challenge-clue-input').value,
-        from: byId<HTMLInputElement>('challenge-from').value,
-      };
-      void this.shareChallenge(draft, byId('challenge-status'), byId<HTMLInputElement>('challenge-link'));
-    });
-  }
-
-  private async shareChallenge(draft: Omit<ChallengeDraft, 'language'>, status: HTMLElement, linkField?: HTMLInputElement): Promise<void> {
-    let link: string;
-    try {
-      link = challengeUrl(await createChallengeCode(createChallenge({ ...draft, language: this.settings.language })));
-    } catch (error) {
-      status.textContent = error instanceof ChallengeError ? this.messages.challengeBadWord : this.describeChallengeFailure(error);
-      return;
-    }
-    status.textContent = (await copyText(link)) ? this.messages.challengeCopied : this.messages.copyBlocked;
-    if (linkField) {
-      linkField.hidden = false;
-      linkField.value = link;
-    }
-  }
-
   // Stats and result
 
   private openStats(): void {
@@ -444,8 +451,11 @@ export class App {
 
   private bindResultDialog(): void {
     byId('share').addEventListener('click', () => void this.share());
-    byId('next-game').addEventListener('click', () => this.playAnother());
-    byId('challenge-this-word').addEventListener('click', () => void this.shareChallenge({ word: this.game.answer }, byId('result-status')));
+    byId('next-game').addEventListener('click', () => void this.playAnother());
+    byId('challenge-this-word').addEventListener('click', () => {
+      void this.maker.shareWord({ language: this.settings.language, word: this.game.answer }, byId('result-status'));
+    });
+    byId('challenge-back').addEventListener('click', () => this.challengeBack());
   }
 
   private openResult(): void {
@@ -460,9 +470,47 @@ export class App {
     byId('result-status').textContent = '';
     const sections = this.statsSections(won ? guessCount : undefined).filter((_, index) => (index === 0 ? this.playMode === 'daily' : this.playMode === 'practice'));
     renderStats(byId('result-stats'), sections, messages);
+    this.renderChallengeOutcome();
     const dialog = byId<HTMLDialogElement>('result-dialog');
     if (!dialog.open) dialog.showModal();
     void this.renderGameReview();
+  }
+
+  /** The story, the series score and everyone's results, for a friend's challenge. */
+  private renderChallengeOutcome(): void {
+    const challenge = this.playMode === 'challenge' ? this.challenge : undefined;
+    const back = byId('challenge-back');
+    back.hidden = !challenge;
+    back.textContent = challenge?.from ? this.messages.challengeBack(challenge.from) : this.messages.challengeBackFriend;
+    byId('challenge-this-word').hidden = Boolean(challenge);
+    const story = this.game.story ?? '';
+    byId('result-story').hidden = !challenge || !story;
+    byId('result-story-text').textContent = story;
+    const series = challenge ? (this.lastVerdict?.series ?? challenge.series) : undefined;
+    const seriesLine = byId('result-series');
+    seriesLine.hidden = !series;
+    seriesLine.textContent = series ? describeSeries(series, this.viewContext()) : '';
+    seriesLine.title = this.messages.pointsHelp;
+    byId('result-scoreboard').hidden = true;
+    if (challenge) void this.renderScoreboardFor(challenge);
+  }
+
+  private async renderScoreboardFor(challenge: RemoteChallenge): Promise<void> {
+    const scoreboard = this.lastVerdict?.scoreboard ?? (await fetchScoreboard(challenge.code).catch(() => []));
+    if (scoreboard.length === 0) return;
+    renderScoreboard(byId('scoreboard-list'), scoreboard, this.viewContext());
+    byId('result-scoreboard').hidden = false;
+  }
+
+  private challengeBack(): void {
+    if (!this.challenge) return;
+    byId<HTMLDialogElement>('result-dialog').close();
+    this.maker.open(this.settings.language, {
+      replyTo: this.challenge.code,
+      language: this.challenge.language,
+      opponentName: this.challenge.from,
+      resultText: this.shareText(),
+    });
   }
 
   private async renderGameReview(): Promise<void> {
@@ -483,7 +531,11 @@ export class App {
   }
 
   private async share(): Promise<void> {
-    const text = buildShareText({
+    this.showToast((await copyText(this.shareText())) ? this.messages.copied : this.messages.copyBlocked);
+  }
+
+  private shareText(): string {
+    return buildShareText({
       gameName: GAME_NAME,
       modeLabel: this.messages.modeLabel(this.playMode, this.game.day),
       languageCode: this.settings.language,
@@ -492,16 +544,18 @@ export class App {
       hardMode: this.game.hardMode,
       highContrast: this.settings.highContrast,
     });
-    this.showToast((await copyText(text)) ? this.messages.copied : this.messages.copyBlocked);
   }
 
-  private playAnother(): void {
+  /** Continues in practice, in the player's own language even after a friend's challenge in another one. */
+  private async playAnother(): Promise<void> {
     byId<HTMLDialogElement>('result-dialog').close();
-    const { language, hardMode } = this.settings;
-    const resumable = this.playMode !== 'practice' ? openGame(language, 'practice', this.bank, hardMode, new Date()) : undefined;
-    this.leaveChallenge('practice');
-    void this.changeSettings({ mode: 'practice' });
-    this.game = resumable?.status === 'playing' ? resumable : startPracticeGame(language, this.bank, hardMode);
+    if (this.playMode !== 'practice') {
+      this.leaveChallenge('practice');
+      await this.changeSettings({ mode: 'practice' });
+      await this.openCurrentGame();
+      if (this.game.status === 'playing') return;
+    }
+    this.game = startPracticeGame(this.settings.language, this.bank, this.settings.hardMode);
     this.input = '';
     this.renderAll();
   }
@@ -513,14 +567,21 @@ export class App {
  */
 function pressesVisibleControl(target: HTMLElement): boolean {
   const control = target.closest<HTMLElement>('button, summary');
-  return control !== null && control.checkVisibility();
+  if (control === null || !control.checkVisibility()) return false;
+  // Closing a dialog hands focus back to the header button that opened it; after a mouse click that
+  // Enter is meant for the guess, not the button.
+  return !(headerUsedWithPointer && control.closest('header'));
 }
+
+/** Whether the header was last used with a mouse or touch; Tab switches back to keyboard behaviour. */
+let headerUsedWithPointer = false;
 
 /** After a mouse or touch click, hand focus back so a physical Enter submits the guess instead of re-clicking. */
 function releasePointerFocus(event: MouseEvent): void {
-  const isPointerClick = event.detail > 0;
   const button = (event.target as HTMLElement).closest('header button');
-  if (isPointerClick && button instanceof HTMLElement) button.blur();
+  if (!(button instanceof HTMLElement)) return;
+  headerUsedWithPointer = event.detail > 0;
+  if (headerUsedWithPointer) button.blur();
 }
 
 async function copyText(text: string): Promise<boolean> {

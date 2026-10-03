@@ -3,9 +3,9 @@ import { guess, startPracticeWith } from './helpers.ts';
 
 /** Creates a challenge through the real API, as the settings form does. */
 async function challengeLink(request: APIRequestContext, language: string, word: string, clue: string): Promise<string> {
-  const response = await request.post('/api/challenges', { data: { language, word, clue } });
+  const response = await request.post('/api/challenges', { data: { language, word, clue, playerId: 'e2e-maker-0001' } });
   expect(response.status()).toBe(201);
-  return `/?c=${(await response.json()).code}`;
+  return `/?c=${(await response.json()).id}`;
 }
 
 test.describe('strategy score', () => {
@@ -94,7 +94,7 @@ test.describe('challenge links', () => {
     await expect(page.locator('#fit-words')).toContainText('TAPAS');
   });
 
-  test('a challenge in progress survives a reload, and leaving it returns to daily play', async ({ page, request }) => {
+  test('a challenge in progress survives a reload, and leaving it returns to daily play in the own language', async ({ page, request }) => {
     await page.goto(await challengeLink(request, 'es', 'señor', 'el profe'));
     await page.click('#welcome-start');
     await expect(page.locator('#game-caption')).toHaveText('Reto');
@@ -102,7 +102,7 @@ test.describe('challenge links', () => {
     await page.reload();
     await expect(page.locator('.board-row').first()).toContainText('perro', { ignoreCase: true });
     await page.click('[data-mode="daily"]');
-    await expect(page.locator('#game-caption')).toHaveText(/^Diario n\.º \d+$/);
+    await expect(page.locator('#game-caption')).toHaveText(/^Daily #\d+$/);
     expect(new URL(page.url()).search).toBe('');
   });
 
@@ -131,8 +131,8 @@ test.describe('challenge links', () => {
   });
 
   test('explains the challenge the first time the link is opened', async ({ page, request }) => {
-    const response = await request.post('/api/challenges', { data: { language: 'en', word: 'zorbo', clue: 'our old dog', from: 'Ana' } });
-    await page.goto(`/?c=${(await response.json()).code}`);
+    const response = await request.post('/api/challenges', { data: { language: 'en', word: 'zorbo', clue: 'our old dog', from: 'Ana', playerId: 'e2e-maker-0001' } });
+    await page.goto(`/?c=${(await response.json()).id}`);
     const welcome = page.locator('#welcome-dialog');
     await expect(welcome).toBeVisible();
     await expect(welcome.locator('h2')).toHaveText('Ana has challenged you');
@@ -153,6 +153,71 @@ test.describe('challenge links', () => {
     await expect(page.locator('#welcome-dialog h2')).toHaveText('On vous lance un défi');
     await expect(page.locator('#welcome-clue')).toBeHidden();
     await expect(page.locator('#welcome-any-letters')).toBeHidden();
+  });
+
+  test('the creator picks the challenge language without changing their own game', async ({ page, context, browser }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await page.goto('/');
+    await page.click('#open-challenge');
+    await expect(page.locator('#challenge-language')).toHaveValue('en');
+    await page.selectOption('#challenge-language', 'es');
+    await page.fill('#challenge-word', 'Señor');
+    await page.click('#challenge-form button[type="submit"]');
+    await expect(page.locator('#challenge-status')).toHaveText('Challenge link copied');
+    const link = await page.evaluate(() => navigator.clipboard.readText());
+    await page.keyboard.press('Escape');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+    await expect(page.locator('#game-caption')).toHaveText(/^Daily #\d+$/);
+
+    const friend = await browser.newPage();
+    await friend.goto(link);
+    await expect(friend.locator('#welcome-dialog h2')).toHaveText('Te han lanzado un reto');
+    await friend.click('#welcome-start');
+    // Playwright types ñ without a key press, so tap the on-screen key as a phone user would.
+    await friend.keyboard.type('se');
+    await friend.click('[data-key="ñ"]');
+    await guess(friend, 'or');
+    await expect(friend.locator('#result-answer')).toHaveText('SEÑOR');
+    await friend.close();
+  });
+
+  test("a friend's own language comes back after a challenge in another language", async ({ page, request }) => {
+    await page.goto('/');
+    await page.evaluate(() => localStorage.setItem('sixth-guess:settings', JSON.stringify({ language: 'en', mode: 'daily' })));
+    await page.goto(await challengeLink(request, 'es', 'perro', ''));
+    await page.click('#welcome-start');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'es');
+    await page.click('#open-settings');
+    await page.locator('#setting-contrast').check();
+    await page.keyboard.press('Escape');
+    const saved = () => page.evaluate(() => JSON.parse(localStorage.getItem('sixth-guess:settings')!).language);
+    expect(await saved()).toBe('en');
+    await guess(page, 'perro');
+    await page.click('#next-game');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+    await expect(page.locator('#game-caption')).toHaveText('Practice');
+    await expect(page.locator('.keyboard-row').nth(1)).not.toContainText('ñ');
+    expect(await saved()).toBe('en');
+  });
+
+  test('switching to daily mid-challenge also restores the own language', async ({ page, request }) => {
+    await page.goto('/');
+    await page.evaluate(() => localStorage.setItem('sixth-guess:settings', JSON.stringify({ language: 'fr', mode: 'daily' })));
+    await page.goto(await challengeLink(request, 'es', 'perro', ''));
+    await page.click('#welcome-start');
+    await page.click('[data-mode="daily"]');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'fr');
+    await expect(page.locator('#game-caption')).toHaveText(/^Mot du jour n° \d+$/);
+  });
+
+  test('choosing a language mid-challenge keeps that explicit choice', async ({ page, request }) => {
+    await page.goto('/');
+    await page.evaluate(() => localStorage.setItem('sixth-guess:settings', JSON.stringify({ language: 'en', mode: 'daily' })));
+    await page.goto(await challengeLink(request, 'es', 'perro', ''));
+    await page.click('#welcome-start');
+    await page.selectOption('#language', 'fr');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'fr');
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('sixth-guess:settings')!).language)).toBe('fr');
   });
 
   test('a broken link falls back to normal play with a message', async ({ page }) => {

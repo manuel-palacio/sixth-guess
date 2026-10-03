@@ -1211,6 +1211,7 @@ input {
 }
 
 .challenge-form input,
+.challenge-form select,
 .challenge-link {
   width: 100%;
   padding: 8px 10px;
@@ -1340,3 +1341,198 @@ input {
 .palette-swatch i:nth-child(1) { background: var(--correct-l); }
 .palette-swatch i:nth-child(2) { background: var(--present-l); }
 .palette-swatch i:nth-child(3) { background: var(--absent-l); }
+
+/* Friend challenges: badge, story, series and scoreboards */
+
+.icon-button {
+  position: relative;
+}
+
+.badge {
+  position: absolute;
+  top: 1px;
+  right: 0;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--present);
+  color: var(--on-present);
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 17px;
+  text-align: center;
+}
+
+.welcome-series,
+.result-series {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.result-series {
+  margin-top: 14px;
+}
+
+.welcome-name {
+  display: grid;
+  gap: 4px;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.welcome-name input {
+  padding: 8px 10px;
+  border: 1.5px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  font-weight: 400;
+}
+
+.welcome-name small,
+.challenge-form small {
+  font-weight: 400;
+  color: var(--ink-soft);
+}
+
+.challenge-form textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1.5px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  font: inherit;
+  font-weight: 400;
+  resize: vertical;
+}
+
+.result-story {
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border-left: 3px solid var(--present);
+  background: color-mix(in srgb, var(--present) 7%, var(--surface));
+  border-radius: 0 8px 8px 0;
+}
+
+.result-story h3 {
+  margin: 0 0 4px;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+
+.result-story p {
+  margin: 0;
+  font-family: var(--font-hand);
+  font-size: 1.45rem;
+  line-height: 1.2;
+}
+
+.scoreboard {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.scoreboard-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 2.6rem 2.6rem;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 8px;
+}
+
+.scoreboard-row.is-you {
+  background: color-mix(in srgb, var(--correct) 10%, var(--surface));
+  font-weight: 700;
+}
+
+.scoreboard-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scoreboard-score,
+.scoreboard-strategy {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.scoreboard-strategy {
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+}
+
+.mini-grid {
+  display: grid;
+  gap: 1px;
+}
+
+.mini-grid-row {
+  display: flex;
+  gap: 1px;
+}
+
+.mini-grid i {
+  width: 6px;
+  height: 6px;
+  border-radius: 1px;
+  background: var(--tile-empty);
+}
+
+.mini-grid i[data-state='correct'] { background: var(--correct); }
+.mini-grid i[data-state='present'] { background: var(--present); }
+.mini-grid i[data-state='absent'] { background: var(--absent); }
+
+.sent-challenges {
+  margin-top: 8px;
+  padding-top: 4px;
+  border-top: 1px solid var(--line);
+}
+
+.sent-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sent-empty {
+  color: var(--ink-soft);
+}
+
+.sent-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.sent-word {
+  font-family: var(--font-display);
+  letter-spacing: 0.08em;
+}
+
+.sent-language {
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+}
+
+.sent-new {
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--present);
+  color: var(--on-present);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.sent-results {
+  margin: 2px 0 0;
+  color: var(--ink-soft);
+}

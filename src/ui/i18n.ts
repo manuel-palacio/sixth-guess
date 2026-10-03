@@ -45,8 +45,22 @@ interface StaticText {
   challengeTitle: string;
   challengeHelp: string;
   challengeWord: string;
+  challengeLanguage: string;
   challengeClue: string;
   challengeFrom: string;
+  challengeStory: string;
+  challengeStoryHelp: string;
+  yourName: string;
+  storyTitle: string;
+  scoreboardTitle: string;
+  you: string;
+  someone: string;
+  yourTurn: string;
+  sentTitle: string;
+  sentEmpty: string;
+  nobodyYet: string;
+  pointsHelp: string;
+  challengeBackFriend: string;
   challengedByFriend: string;
   welcomeIntro: string;
   welcomeAnyLetters: string;
@@ -103,6 +117,11 @@ export interface Messages extends StaticText {
   strategyScore(score: number): string;
   clue(text: string): string;
   challengedBy(name: string): string;
+  welcomeNameHelp(name: string): string;
+  challengeBack(name: string): string;
+  seriesRound(round: number): string;
+  points(count: number): string;
+  newResults(count: number): string;
   rowEmpty(row: number): string;
   rowTyping(row: number, word: string): string;
   rowResult(row: number, description: string): string;
@@ -163,8 +182,22 @@ const EN: Messages = {
   challengeTitle: 'Challenge a friend',
   challengeHelp: 'Pick any five letters: a name, a place, an old joke. Your friend gets a link to solve it.',
   challengeWord: 'Word',
+  challengeLanguage: 'Language your friend plays in',
   challengeClue: 'Clue (optional)',
   challengeFrom: 'Your name (optional)',
+  challengeStory: 'Story (optional)',
+  challengeStoryHelp: 'Shown after the game: the memory behind the word.',
+  yourName: 'Your name',
+  storyTitle: 'The story behind it',
+  scoreboardTitle: 'Everyone who played this word',
+  you: 'You',
+  someone: 'Someone',
+  yourTurn: 'Your turn',
+  sentTitle: 'Your challenges',
+  sentEmpty: 'Challenges you send appear here, with everyone’s results.',
+  nobodyYet: 'No one has played yet',
+  pointsHelp: 'Points per solved word: 6 for one guess, down to 1 for six.',
+  challengeBackFriend: 'Challenge them back',
   challengedByFriend: 'A friend has challenged you',
   welcomeIntro: 'They picked a secret five-letter word. Find it in six guesses: type any word, and the tiles show which letters are in it.',
   welcomeAnyLetters: 'It may be a name or a private joke, so any five letters are allowed.',
@@ -218,6 +251,11 @@ const EN: Messages = {
   strategyScore: (score) => `Strategy score: ${score}%`,
   clue: (text) => `Clue: ${text}`,
   challengedBy: (name) => `${name} has challenged you`,
+  welcomeNameHelp: (name) => `So ${name} can see how you did`,
+  challengeBack: (name) => `Challenge ${name} back`,
+  seriesRound: (round) => `Round ${round}`,
+  points: (count) => `${count} ${count === 1 ? 'pt' : 'pts'}`,
+  newResults: (count) => `${count} new`,
   rowEmpty: (row) => `Guess ${row}, empty`,
   rowTyping: (row, word) => `Guess ${row}, typing: ${word}`,
   rowResult: (row, description) => `Guess ${row}: ${description}`,
@@ -277,8 +315,22 @@ const ES: Messages = {
   challengeTitle: 'Reta a un amigo',
   challengeHelp: 'Elige cinco letras cualesquiera: un nombre, un lugar, una broma de siempre. Tu amigo recibe un enlace para resolverla.',
   challengeWord: 'Palabra',
+  challengeLanguage: 'Idioma del reto',
   challengeClue: 'Pista (opcional)',
   challengeFrom: 'Tu nombre (opcional)',
+  challengeStory: 'Historia (opcional)',
+  challengeStoryHelp: 'Se muestra al terminar: el recuerdo detrás de la palabra.',
+  yourName: 'Tu nombre',
+  storyTitle: 'La historia detrás',
+  scoreboardTitle: 'Quién ha jugado esta palabra',
+  you: 'Tú',
+  someone: 'Alguien',
+  yourTurn: 'Te toca',
+  sentTitle: 'Tus retos',
+  sentEmpty: 'Los retos que envíes aparecen aquí, con los resultados de todos.',
+  nobodyYet: 'Nadie ha jugado todavía',
+  pointsHelp: 'Puntos por palabra resuelta: 6 a la primera, hasta 1 en el sexto intento.',
+  challengeBackFriend: 'Devuélvele el reto',
   challengedByFriend: 'Te han lanzado un reto',
   welcomeIntro: 'Ha elegido una palabra secreta de cinco letras. Encuéntrala en seis intentos: escribe cualquier palabra y las casillas te dirán qué letras contiene.',
   welcomeAnyLetters: 'Puede ser un nombre o una broma vuestra, así que se acepta cualquier combinación de cinco letras.',
@@ -332,6 +384,11 @@ const ES: Messages = {
   strategyScore: (score) => `Estrategia: ${score}%`,
   clue: (text) => `Pista: ${text}`,
   challengedBy: (name) => `${name} te ha retado`,
+  welcomeNameHelp: (name) => `Para que ${name} vea cómo te ha ido`,
+  challengeBack: (name) => `Devuélvele el reto a ${name}`,
+  seriesRound: (round) => `Ronda ${round}`,
+  points: (count) => `${count} ${count === 1 ? 'pto' : 'ptos'}`,
+  newResults: (count) => `${count} ${count === 1 ? 'nuevo' : 'nuevos'}`,
   rowEmpty: (row) => `Intento ${row}, vacío`,
   rowTyping: (row, word) => `Intento ${row}, escribiendo: ${word}`,
   rowResult: (row, description) => `Intento ${row}: ${description}`,
@@ -391,8 +448,22 @@ const FR: Messages = {
   challengeTitle: 'Défier un ami',
   challengeHelp: 'Choisissez cinq lettres : un prénom, un lieu, une vieille blague. Votre ami reçoit un lien pour le trouver.',
   challengeWord: 'Mot',
+  challengeLanguage: 'Langue du défi',
   challengeClue: 'Indice (facultatif)',
   challengeFrom: 'Votre prénom (facultatif)',
+  challengeStory: 'Histoire (facultatif)',
+  challengeStoryHelp: 'Affichée après la partie : le souvenir derrière le mot.',
+  yourName: 'Votre prénom',
+  storyTitle: 'L’histoire derrière',
+  scoreboardTitle: 'Tous ceux qui ont joué ce mot',
+  you: 'Vous',
+  someone: 'Quelqu’un',
+  yourTurn: 'À vous',
+  sentTitle: 'Vos défis',
+  sentEmpty: 'Les défis que vous envoyez apparaissent ici, avec les résultats de chacun.',
+  nobodyYet: 'Personne n’a encore joué',
+  pointsHelp: 'Points par mot trouvé : 6 du premier coup, jusqu’à 1 au sixième essai.',
+  challengeBackFriend: 'Lui renvoyer un défi',
   challengedByFriend: 'On vous lance un défi',
   welcomeIntro: 'Un mot secret de cinq lettres a été choisi pour vous. Trouvez-le en six essais : tapez n’importe quel mot, et les cases indiquent quelles lettres il contient.',
   welcomeAnyLetters: 'Ce peut être un prénom ou une blague entre vous : toute suite de cinq lettres est acceptée.',
@@ -446,6 +517,11 @@ const FR: Messages = {
   strategyScore: (score) => `Stratégie : ${score} %`,
   clue: (text) => `Indice : ${text}`,
   challengedBy: (name) => `${name} vous lance un défi`,
+  welcomeNameHelp: (name) => `Pour que ${name} voie votre résultat`,
+  challengeBack: (name) => `Renvoyer un défi à ${name}`,
+  seriesRound: (round) => `Manche ${round}`,
+  points: (count) => `${count} pt${count === 1 ? '' : 's'}`,
+  newResults: (count) => `${count} nouveau${count === 1 ? '' : 'x'}`,
   rowEmpty: (row) => `Essai ${row}, vide`,
   rowTyping: (row, word) => `Essai ${row}, en cours : ${word}`,
   rowResult: (row, description) => `Essai ${row} : ${description}`,

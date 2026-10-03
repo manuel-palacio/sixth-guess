@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { measureSplit, suggestGuess } from './suggest.ts';
+import { measureSplit, SEARCH_SAMPLE_SIZE, suggestGuess } from './suggest.ts';
 import { scoreGuess } from './feedback.ts';
 import { filterCandidates } from './candidates.ts';
 
@@ -54,5 +54,19 @@ describe('suggestGuess', () => {
 describe('measureSplit', () => {
   it('counts distinct patterns and the largest group', () => {
     expect(measureSplit('fight', IGHT_TRAP)).toEqual({ groupCount: 2, largestGroup: 5 });
+  });
+});
+
+describe('large candidate sets', () => {
+  const letters = 'abcdefghij';
+  const words = Array.from({ length: 1000 }, (_, index) =>
+    [...String(index).padStart(3, '0')].map((digit) => letters[Number(digit)]).join('') + 'xy',
+  );
+
+  it('reports the exact split of the chosen word, not the sample used to find it', () => {
+    expect(words.length).toBeGreaterThan(SEARCH_SAMPLE_SIZE);
+    const suggestion = suggestGuess(words, words.slice(0, 50), []);
+    expect(suggestion.groupCount).toBe(measureSplit(suggestion.word, words).groupCount);
+    expect(suggestion.basis).toMatchObject({ kind: 'split', candidateCount: 1000 });
   });
 });

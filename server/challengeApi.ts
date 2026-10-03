@@ -1,13 +1,11 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { ChallengeError, createChallenge } from '../src/game/challenge.ts';
+import { ChallengeError } from '../src/game/challenge.ts';
 import { GuessRejectedError } from '../src/game/game.ts';
 import { LANGUAGE_CODES, type LanguageCode } from '../src/game/language.ts';
-import { openChallenge, sealChallenge } from './challengeCrypto.ts';
-import { acceptsAnyLetters, judgeGuesses } from './challengeRules.ts';
-import type { WordSets } from './wordSets.ts';
+import { BadRequestError, type ChallengeService } from './challengeService.ts';
 
 const MAX_BODY_BYTES = 4096;
-const ROUTE = /^\/api\/challenges(?:\/([A-Za-z0-9_-]+)(\/guesses)?)?$/;
+const ROUTE = /^\/api\/challenges(?:\/([A-Za-z0-9_-]+)(?:\/(guesses|results))?)?$/;
 
 class HttpError extends Error {
   readonly status: number;
@@ -20,69 +18,60 @@ class HttpError extends Error {
   }
 }
 
-/** Handles /api/challenges requests; resolves false for any other path so the caller can serve files. */
-export function createChallengeApi(key: Buffer, validGuesses: WordSets) {
+/** Maps /api/challenges requests onto the service; resolves false for other paths so the caller can serve files. */
+export function createChallengeApi(service: ChallengeService) {
   return async (request: IncomingMessage, response: ServerResponse): Promise<boolean> => {
     const match = ROUTE.exec(new URL(request.url ?? '/', 'http://localhost').pathname);
     if (!match) return false;
-    const [, code, guessesSuffix] = match;
+    const [, id, action] = match;
     try {
-      const body = await route(request, code, Boolean(guessesSuffix));
-      sendJson(response, request.method === 'POST' && !code ? 201 : 200, body);
+      const body = await route(request.method ?? 'GET', id, action, request);
+      sendJson(response, !id && request.method === 'POST' ? 201 : 200, body);
     } catch (error) {
-      if (!(error instanceof HttpError)) throw error;
-      sendJson(response, error.status, error.body);
+      const { status, body } = toHttpError(error);
+      sendJson(response, status, body);
     }
     return true;
   };
 
-  async function route(request: IncomingMessage, code: string | undefined, isGuesses: boolean): Promise<object> {
-    if (!code && request.method === 'POST') return createCode(await readJson(request));
-    if (code && !isGuesses && request.method === 'GET') return describe(code);
-    if (code && isGuesses && request.method === 'POST') return judge(code, await readJson(request));
+  async function route(method: string, id: string | undefined, action: string | undefined, request: IncomingMessage): Promise<object> {
+    if (!id && method === 'POST') return create(await readJson(request));
+    if (id && !action && method === 'GET') return service.describe(id);
+    if (id && action === 'guesses' && method === 'POST') return judge(id, await readJson(request));
+    if (id && action === 'results' && method === 'GET') return service.scoreboard(id);
     throw new HttpError(405, { error: 'methodNotAllowed' });
   }
 
-  function createCode(body: Record<string, unknown>): object {
-    const { language, word, clue, from } = body;
+  function create(body: Record<string, unknown>): Promise<object> {
+    const { language, word, clue, from, story, playerId, replyTo } = body;
     if (!LANGUAGE_CODES.includes(language as LanguageCode) || typeof word !== 'string') throw new HttpError(400, { error: 'badRequest' });
-    const text = (value: unknown) => (typeof value === 'string' ? value : '');
-    try {
-      return { code: sealChallenge(createChallenge({ language: language as LanguageCode, word, clue: text(clue), from: text(from) }), key) };
-    } catch (error) {
-      if (error instanceof ChallengeError) throw new HttpError(422, { error: 'badWord' });
-      throw error;
-    }
+    return service.create({
+      draft: { language: language as LanguageCode, word, clue: text(clue), from: text(from) },
+      story: text(story),
+      playerId: text(playerId),
+      replyTo: typeof replyTo === 'string' && replyTo ? replyTo : undefined,
+    });
   }
 
-  function describe(code: string): object {
-    const challenge = open(code);
-    const anyLetters = acceptsAnyLetters(challenge, validGuesses[challenge.language]);
-    return { language: challenge.language, clue: challenge.clue, from: challenge.from, anyLetters };
-  }
-
-  function judge(code: string, body: Record<string, unknown>): object {
-    const challenge = open(code);
-    const { guesses } = body;
+  function judge(id: string, body: Record<string, unknown>): Promise<object> {
+    const { guesses, playerId, name } = body;
     if (!Array.isArray(guesses) || guesses.length === 0 || !guesses.every((guess) => typeof guess === 'string')) {
       throw new HttpError(400, { error: 'badRequest' });
     }
-    try {
-      return judgeGuesses(challenge, guesses, validGuesses[challenge.language]);
-    } catch (error) {
-      if (error instanceof GuessRejectedError) throw new HttpError(422, { error: 'rejected', reason: error.reason });
-      throw error;
-    }
+    return service.judge(id, { guesses, playerId: text(playerId), name: text(name) });
   }
+}
 
-  function open(code: string) {
-    try {
-      return openChallenge(code, key);
-    } catch (error) {
-      if (error instanceof ChallengeError) throw new HttpError(404, { error: 'broken' });
-      throw error;
-    }
-  }
+function toHttpError(error: unknown): HttpError {
+  if (error instanceof HttpError) return error;
+  if (error instanceof BadRequestError) return new HttpError(400, { error: 'badRequest' });
+  if (error instanceof GuessRejectedError) return new HttpError(422, { error: 'rejected', reason: error.reason });
+  if (error instanceof ChallengeError) return new HttpError(error.reason === 'badWord' ? 422 : 404, { error: error.reason });
+  throw error;
+}
+
+function text(value: unknown): string {
+  return typeof value === 'string' ? value : '';
 }
 
 async function readJson(request: IncomingMessage): Promise<Record<string, unknown>> {

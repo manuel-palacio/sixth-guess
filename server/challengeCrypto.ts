@@ -17,7 +17,7 @@ export function sealChallenge({ language, word, clue, from }: Challenge, key: Bu
 
 export function openChallenge(code: string, key: Buffer): Challenge {
   const bytes = Buffer.from(code, 'base64url');
-  if (bytes.length <= IV_BYTES + TAG_BYTES) throw new ChallengeError('This challenge link is broken');
+  if (bytes.length <= IV_BYTES + TAG_BYTES) throw new ChallengeError('broken');
   let fields: unknown;
   try {
     const decipher = createDecipheriv(ALGORITHM, key, bytes.subarray(0, IV_BYTES));
@@ -25,7 +25,7 @@ export function openChallenge(code: string, key: Buffer): Challenge {
     const plain = Buffer.concat([decipher.update(bytes.subarray(IV_BYTES + TAG_BYTES)), decipher.final()]);
     fields = JSON.parse(plain.toString('utf8'));
   } catch {
-    throw new ChallengeError('This challenge link is broken');
+    throw new ChallengeError('broken');
   }
   return toChallenge(fields);
 }
@@ -37,11 +37,11 @@ export function parseKey(base64: string): Buffer {
 }
 
 function toChallenge(fields: unknown): Challenge {
-  if (!Array.isArray(fields)) throw new ChallengeError('This challenge link is broken');
+  if (!Array.isArray(fields)) throw new ChallengeError('broken');
   const [language, word, clue, from] = fields as unknown[];
   const known = LANGUAGE_CODES.includes(language as LanguageCode);
   if (!known || typeof word !== 'string' || typeof clue !== 'string' || typeof from !== 'string') {
-    throw new ChallengeError('This challenge link is broken');
+    throw new ChallengeError('broken');
   }
   return createChallenge({ language: language as LanguageCode, word, clue, from });
 }

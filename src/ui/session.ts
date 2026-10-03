@@ -13,6 +13,8 @@ export interface SavedGame extends GameState {
   /** Challenge mode: the link's code and the friend's clue. The answer stays empty until the server reveals it. */
   challengeCode?: string;
   clue?: string;
+  /** Revealed by the server when the challenge ends. */
+  story?: string;
   statsRecorded: boolean;
   strategyRecorded?: boolean;
 }

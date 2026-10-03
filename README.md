@@ -5,10 +5,13 @@ and hints that teach strategy. Plays in English, Spanish and French. Static site
 
 Live: https://sixth-guess-775623848462.europe-north1.run.app
 
-- **Daily, practice and challenges.** A challenge is a link to any five letters you pick (a name, a place,
-  an old joke) with an optional clue and your name. The word is encrypted by the server and never sent
-  to your friend's browser until the game ends; the server scores each guess. Words outside the
-  dictionary accept any five-letter guess. Challenges never count towards stats.
+- **Daily, practice and challenges.** A challenge is a short link to any five letters you pick (a name,
+  a place, an old joke), with an optional clue, story and your name. The word stays on the server and
+  is never sent to the player's browser until the game ends; the server scores each guess. Words
+  outside the dictionary accept any five-letter guess. Challenges never count towards stats.
+- **Playing friends.** Everyone who plays a link lands on its scoreboard. The sender sees results
+  arrive (badge on the toolbar). "Challenge back" starts a series with a running score: a solve in
+  n guesses earns 7 − n points. An optional story is revealed after the game.
 - **Scratchpad.** Known pattern, ruled-out letters, the words that still fit, and a suggested guess that
   explains itself.
 - **Strategy score.** After each game, every guess is compared with the best available one; the average
@@ -24,9 +27,11 @@ npm install
 npm run dev          # http://localhost:5173, challenge API included (throwaway key)
 ```
 
-Production runs `server/main.ts` (Node 24, no dependencies): it serves `dist/` and the challenge API
-under `/api/challenges`. It needs `CHALLENGE_KEY`, a base64 32-byte key (`openssl rand -base64 32`);
-changing the key breaks existing challenge links.
+Production runs `server/main.ts` (Node 24): it serves `dist/` and the challenge API under
+`/api/challenges`, storing challenges, results and series in Firestore (`challenges/{id}`,
+`challenges/{id}/results/{playerId}`, `series/{id}`). Locally, and with `STORE=memory`, an in-memory
+store is used instead. `CHALLENGE_KEY` (a base64 32-byte key, `openssl rand -base64 32`) is still
+required: it opens links created before challenges were stored.
 
 ## Test
 
@@ -65,11 +70,12 @@ Sources:
 ## Deploy (Cloud Run)
 
 The `Dockerfile` builds the site and runs the Node server on port 8080. The key lives in Secret Manager
-(`challenge-key` in `sixth-guess-game`).
+(`challenge-key` in `sixth-guess-game`); the Firestore database is the project's `(default)` database in
+`europe-north1`, used through the service's own account (`roles/datastore.user`).
 
 ```sh
 gcloud run deploy sixth-guess --source . --project=sixth-guess-game --region=europe-north1 \
-  --allow-unauthenticated --set-secrets=CHALLENGE_KEY=challenge-key:latest
+  --allow-unauthenticated --memory=512Mi --set-secrets=CHALLENGE_KEY=challenge-key:latest
 ```
 
 ## Layout
@@ -77,5 +83,6 @@ gcloud run deploy sixth-guess --source . --project=sixth-guess-game --region=eur
 - `src/game/`: pure, DOM-free logic (scoring, clues, hard mode, candidate filtering, guess suggestion,
   review, daily/practice selection, stats, share text).
 - `src/ui/`: DOM, storage, i18n and the solver Web Worker.
-- `server/`: challenge encryption, rules and HTTP API, plus the production static server.
+- `server/`: challenge service (series, results, scoreboards), storage (Firestore and in-memory),
+  rules, HTTP API and the production static server.
 - `e2e/`: Playwright specs.
