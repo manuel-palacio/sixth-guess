@@ -138,3 +138,49 @@ test.describe('friends playing each other', () => {
     await expect(manu.locator('#challenge-language')).toHaveValue('es');
   });
 });
+
+test.describe('guesses are tracked by the server', () => {
+  test('clearing the saved game does not reset the board', async ({ browser }) => {
+    const ana = await player(browser, 'Ana');
+    const link = await sendChallenge(ana, 'abide');
+    const manu = await player(browser, 'Manu');
+    await openAndStart(manu, link);
+    await guess(manu, 'speed');
+    await guess(manu, 'crane');
+    await manu.evaluate(() => localStorage.removeItem('sixth-guess:game:en:challenge'));
+    await manu.reload();
+    await expect(manu.locator('.board-row').nth(0)).toContainText('speed', { ignoreCase: true });
+    await expect(manu.locator('.board-row').nth(1)).toContainText('crane', { ignoreCase: true });
+    await expect(manu.locator('#welcome-dialog')).toBeHidden();
+  });
+
+  test('a board that moved on in another tab is restored instead of overwritten', async ({ browser }) => {
+    const ana = await player(browser, 'Ana');
+    const link = await sendChallenge(ana, 'abide');
+    const manu = await player(browser, 'Manu');
+    await openAndStart(manu, link);
+    const otherTab = await manu.context().newPage();
+    await openAndStart(otherTab, link);
+    await guess(otherTab, 'speed');
+    await guess(manu, 'crane');
+    await expect(manu.locator('#toast')).toHaveText('Your board was updated with the guesses saved for you');
+    await expect(manu.locator('.board-row').nth(0)).toContainText('speed', { ignoreCase: true });
+    await expect(manu.locator('.board-row').nth(1).locator('.tile').first()).toHaveAttribute('data-state', 'empty');
+  });
+
+  test('starting over and over from one connection is refused', async ({ browser }) => {
+    const ana = await player(browser, 'Ana');
+    const link = await sendChallenge(ana, 'abide');
+    for (let n = 0; n < 4; n++) {
+      const fresh = await player(browser, `P${n}`);
+      await openAndStart(fresh, link);
+      await guess(fresh, 'speed');
+      await fresh.context().close();
+    }
+    const fifth = await player(browser, 'P5');
+    await openAndStart(fifth, link);
+    await fifth.keyboard.type('speed');
+    await fifth.keyboard.press('Enter');
+    await expect(fifth.locator('#toast')).toHaveText('This challenge has already been started too many times from this connection.');
+  });
+});

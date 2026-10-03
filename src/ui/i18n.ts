@@ -92,6 +92,8 @@ interface StaticText {
   challengeBroken: string;
   challengeBadWord: string;
   serverUnavailable: string;
+  attemptLimit: string;
+  boardRestored: string;
   playAnother: string;
   newWord: string;
   nextWord: string;
@@ -232,6 +234,8 @@ const EN: Messages = {
   challengeBroken: 'This challenge link is broken',
   challengeBadWord: 'The word must be exactly five letters',
   serverUnavailable: 'Challenges need a connection. Try again in a moment.',
+  attemptLimit: 'This challenge has already been started too many times from this connection.',
+  boardRestored: 'Your board was updated with the guesses saved for you',
   playAnother: 'Play another',
   newWord: 'New word',
   nextWord: 'Next word',
@@ -368,6 +372,8 @@ const ES: Messages = {
   challengeBroken: 'Este enlace de reto no funciona',
   challengeBadWord: 'La palabra debe tener exactamente cinco letras',
   serverUnavailable: 'Los retos necesitan conexión. Inténtalo de nuevo en un momento.',
+  attemptLimit: 'Este reto ya se ha empezado demasiadas veces desde esta conexión.',
+  boardRestored: 'Tu tablero se ha actualizado con los intentos guardados',
   playAnother: 'Jugar otra',
   newWord: 'Nueva palabra',
   nextWord: 'Siguiente palabra',
@@ -504,6 +510,8 @@ const FR: Messages = {
   challengeBroken: 'Ce lien de défi est cassé',
   challengeBadWord: 'Le mot doit faire exactement cinq lettres',
   serverUnavailable: 'Les défis ont besoin d’une connexion. Réessayez dans un instant.',
+  attemptLimit: 'Ce défi a déjà été commencé trop de fois depuis cette connexion.',
+  boardRestored: 'Votre grille a été mise à jour avec vos essais enregistrés',
   playAnother: 'Rejouer',
   newWord: 'Nouveau mot',
   nextWord: 'Mot suivant',

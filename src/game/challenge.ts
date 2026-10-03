@@ -1,5 +1,5 @@
 import type { TileState } from './feedback.ts';
-import type { GameStatus } from './game.ts';
+import type { GameState, GameStatus } from './game.ts';
 import type { PlayerResult, SeriesScore } from './series.ts';
 import { isPlayableWord, normalizeWord, type LanguageCode } from './language.ts';
 
@@ -29,6 +29,16 @@ export interface Verdict {
   story?: string;
   scoreboard?: PlayerResult[];
   series?: SeriesScore;
+}
+
+/** Rebuilds a board from the server's copy of a player's guesses on a challenge. */
+export function boardFromVerdict<T extends GameState>(game: T, guesses: string[], verdict: Verdict): T {
+  return {
+    ...game,
+    guesses: guesses.map((word, index) => ({ word, states: verdict.results[index] })),
+    status: verdict.status,
+    answer: verdict.answer ?? '',
+  };
 }
 
 export type ChallengeFailure = 'badWord' | 'broken';

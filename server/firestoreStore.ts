@@ -1,6 +1,6 @@
 import { Firestore } from '@google-cloud/firestore';
 import type { PlayerResult } from '../src/game/series.ts';
-import type { ChallengeStore, SeriesRecord, StoredChallenge } from './store.ts';
+import type { Attempt, ChallengeStore, NewGuess, SeriesRecord, StoredChallenge } from './store.ts';
 
 const ALREADY_EXISTS = 6;
 
@@ -41,6 +41,27 @@ export class FirestoreStore implements ChallengeStore {
     return snapshot.docs.map((doc) => toResult(doc.data()));
   }
 
+  async findAttempt(challengeId: string, playerId: string): Promise<Attempt | undefined> {
+    const snapshot = await this.attemptRef(challengeId, playerId).get();
+    return snapshot.exists ? (snapshot.data() as Attempt) : undefined;
+  }
+
+  async appendGuess(challengeId: string, playerId: string, { guess, expectedCount, originHash, now }: NewGuess): Promise<boolean> {
+    const ref = this.attemptRef(challengeId, playerId);
+    return this.db.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(ref);
+      const attempt = snapshot.exists ? (snapshot.data() as Attempt) : { guesses: [], originHash, startedAt: now };
+      if (attempt.guesses.length !== expectedCount) return false;
+      transaction.set(ref, { ...attempt, guesses: [...attempt.guesses, guess] });
+      return true;
+    });
+  }
+
+  async countAttemptsFrom(challengeId: string, originHash: string): Promise<number> {
+    const query = this.db.collection('challenges').doc(challengeId).collection('attempts').where('originHash', '==', originHash);
+    return (await query.count().get()).data().count;
+  }
+
   async saveSeries(series: SeriesRecord): Promise<void> {
     await this.db.collection('series').doc(series.id).set(series);
   }
@@ -58,6 +79,10 @@ export class FirestoreStore implements ChallengeStore {
       transaction.update(ref, { players });
       return { ...series, players };
     });
+  }
+
+  private attemptRef(challengeId: string, playerId: string) {
+    return this.db.collection('challenges').doc(challengeId).collection('attempts').doc(playerId);
   }
 
   private resultRef(challengeId: string, playerId: string) {

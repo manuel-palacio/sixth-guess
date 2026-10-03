@@ -13,6 +13,8 @@ export interface RemoteChallenge {
   /** The word is outside the dictionary, so any five letters are accepted. */
   anyLetters: boolean;
   series?: SeriesScore;
+  /** This player's board as the server holds it. */
+  progress?: Verdict & { guesses: string[] };
 }
 
 export interface NewChallenge {
@@ -25,6 +27,10 @@ export interface NewChallenge {
 
 /** The server could not be reached or failed; distinct from a broken link. */
 export class ChallengeUnavailableError extends Error {}
+/** The server's copy of this player's board moved on (another tab or device); the board must be reloaded. */
+export class BoardOutOfDateError extends Error {}
+/** Too many players were started on this challenge from the same connection. */
+export class AttemptLimitError extends Error {}
 
 export function challengeCodeFromUrl(): string | undefined {
   return new URLSearchParams(location.search).get(PARAM) ?? undefined;
@@ -44,8 +50,8 @@ export async function createChallengeCode({ challenge, story, playerId, replyTo 
   return ((await readOk(response)) as { id: string }).id;
 }
 
-export async function fetchChallenge(code: string): Promise<RemoteChallenge> {
-  const response = await request(`/api/challenges/${encodeURIComponent(code)}`);
+export async function fetchChallenge(code: string, playerId: string): Promise<RemoteChallenge> {
+  const response = await request(`/api/challenges/${encodeURIComponent(code)}?player=${encodeURIComponent(playerId)}`);
   if (response.status === 404) throw new ChallengeError('broken');
   return { code, ...((await readOk(response)) as Omit<RemoteChallenge, 'code'>) };
 }
@@ -56,6 +62,8 @@ export async function judgeRemotely(code: string, guesses: string[], player: { p
   const response = await request(`/api/challenges/${encodeURIComponent(code)}/guesses`, { method: 'POST', body });
   if (response.status === 422) throw new GuessRejectedError(((await response.json()) as { reason: RejectionReason }).reason);
   if (response.status === 404) throw new ChallengeError('broken');
+  if (response.status === 409) throw new BoardOutOfDateError('Board out of date');
+  if (response.status === 429) throw new AttemptLimitError('Too many attempts');
   return (await readOk(response)) as Verdict;
 }
 

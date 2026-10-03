@@ -44,9 +44,17 @@ describe('challenge API', () => {
     const midGame = await (await post(`/api/challenges/${id}/guesses`, { guesses: ['speed'], playerId: PLAYER, name: 'Manu' })).json();
     expect(midGame).toEqual({ results: [['absent', 'absent', 'present', 'absent', 'present']], status: 'playing' });
     const end = await (await post(`/api/challenges/${id}/guesses`, { guesses: ['speed', 'abide'], playerId: PLAYER, name: 'Manu' })).json();
+    expect((await post(`/api/challenges/${id}/guesses`, { guesses: ['crane'], playerId: PLAYER })).status).toBe(409);
     expect(end).toMatchObject({ status: 'won', answer: 'abide', story: 'first flat', scoreboard: [{ name: 'Manu', guessCount: 2 }] });
     const board = await (await fetch(`${base}/api/challenges/${id}/results`)).json();
     expect(board.scoreboard).toHaveLength(1);
+  });
+
+  it('returns the asking player’s progress', async () => {
+    const id = await createId('abide');
+    await post(`/api/challenges/${id}/guesses`, { guesses: ['speed'], playerId: PLAYER });
+    const body = await (await fetch(`${base}/api/challenges/${id}?player=${PLAYER}`)).json();
+    expect(body.progress).toMatchObject({ guesses: ['speed'], status: 'playing' });
   });
 
   it('maps errors to status codes', async () => {

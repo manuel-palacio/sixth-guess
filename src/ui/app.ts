@@ -1,5 +1,5 @@
 import { filterCandidates } from '../game/candidates.ts';
-import { ChallengeError, type Verdict } from '../game/challenge.ts';
+import { boardFromVerdict, ChallengeError, type Verdict } from '../game/challenge.ts';
 import { deriveClues, letterPool } from '../game/clues.ts';
 import { dayNumber, msUntilNextDay } from '../game/daily.ts';
 import { WORD_LENGTH } from '../game/feedback.ts';
@@ -9,6 +9,8 @@ import { legalGuessPool, strategyScore } from '../game/review.ts';
 import { buildShareText } from '../game/share.ts';
 import { Board } from './board.ts';
 import {
+  AttemptLimitError,
+  BoardOutOfDateError,
   challengeCodeFromUrl,
   ChallengeUnavailableError,
   clearChallengeFromUrl,
@@ -99,7 +101,7 @@ export class App {
     const code = challengeCodeFromUrl();
     if (!code) return undefined;
     try {
-      this.challenge = await fetchChallenge(code);
+      this.challenge = await fetchChallenge(code, playerId());
     } catch (error) {
       if (error instanceof ChallengeError) clearChallengeFromUrl();
       return this.describeChallengeFailure(error);
@@ -110,7 +112,18 @@ export class App {
     return undefined;
   }
 
+  /** The server's copy of the board wins over the browser's, so clearing storage or a second tab cannot reset it. */
+  private challengeBoard(challenge: RemoteChallenge, saved: SavedGame): SavedGame {
+    const progress = challenge.progress;
+    if (!progress) return saved;
+    const board: SavedGame = { ...boardFromVerdict(saved, progress.guesses, progress), story: progress.story };
+    if (progress.status !== 'playing') this.lastVerdict = progress;
+    saveGame(challenge.language, 'challenge', board);
+    return board;
+  }
+
   private describeChallengeFailure(error: unknown): string {
+    if (error instanceof AttemptLimitError) return messagesFor(this.settings.language).attemptLimit;
     if (error instanceof ChallengeError) return messagesFor(this.settings.language).challengeBroken;
     if (error instanceof ChallengeUnavailableError) return messagesFor(this.settings.language).serverUnavailable;
     throw error;
@@ -127,7 +140,7 @@ export class App {
     this.bank = await loadWordBank(language);
     this.game =
       this.playMode === 'challenge' && this.challenge
-        ? openChallengeGame(this.challenge, hardMode)
+        ? this.challengeBoard(this.challenge, openChallengeGame(this.challenge, hardMode))
         : openGame(language, this.playMode === 'daily' ? 'daily' : 'practice', this.bank, hardMode, new Date());
     this.input = '';
     this.applyLanguage();
@@ -226,9 +239,26 @@ export class App {
     if (error instanceof GuessRejectedError) {
       this.showToast(describeRejection(this.messages, error.reason));
       this.board.shake(row);
+    } else if (error instanceof BoardOutOfDateError) {
+      void this.reloadChallengeBoard();
     } else {
       this.showToast(this.describeChallengeFailure(error));
     }
+  }
+
+  private async reloadChallengeBoard(): Promise<void> {
+    if (!this.challenge) return;
+    try {
+      this.challenge = await fetchChallenge(this.challenge.code, playerId());
+    } catch (error) {
+      this.showToast(this.describeChallengeFailure(error));
+      return;
+    }
+    this.game = this.challengeBoard(this.challenge, this.game);
+    this.input = '';
+    this.renderAll();
+    this.showToast(this.messages.boardRestored);
+    if (this.game.status !== 'playing') this.openResult();
   }
 
   private async revealGuess(row: number, next: SavedGame): Promise<void> {

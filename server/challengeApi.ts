@@ -2,7 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { ChallengeError } from '../src/game/challenge.ts';
 import { GuessRejectedError } from '../src/game/game.ts';
 import { LANGUAGE_CODES, type LanguageCode } from '../src/game/language.ts';
-import { BadRequestError, type ChallengeService } from './challengeService.ts';
+import { BadRequestError, ConflictError, TooManyAttemptsError, type ChallengeService } from './challengeService.ts';
 
 const MAX_BODY_BYTES = 4096;
 const ROUTE = /^\/api\/challenges(?:\/([A-Za-z0-9_-]+)(?:\/(guesses|results))?)?$/;
@@ -24,8 +24,9 @@ export function createChallengeApi(service: ChallengeService) {
     const match = ROUTE.exec(new URL(request.url ?? '/', 'http://localhost').pathname);
     if (!match) return false;
     const [, id, action] = match;
+    const url = new URL(request.url ?? '/', 'http://localhost');
     try {
-      const body = await route(request.method ?? 'GET', id, action, request);
+      const body = await route(request.method ?? 'GET', id, action, request, url);
       sendJson(response, !id && request.method === 'POST' ? 201 : 200, body);
     } catch (error) {
       const { status, body } = toHttpError(error);
@@ -34,10 +35,10 @@ export function createChallengeApi(service: ChallengeService) {
     return true;
   };
 
-  async function route(method: string, id: string | undefined, action: string | undefined, request: IncomingMessage): Promise<object> {
+  async function route(method: string, id: string | undefined, action: string | undefined, request: IncomingMessage, url: URL): Promise<object> {
     if (!id && method === 'POST') return create(await readJson(request));
-    if (id && !action && method === 'GET') return service.describe(id);
-    if (id && action === 'guesses' && method === 'POST') return judge(id, await readJson(request));
+    if (id && !action && method === 'GET') return service.describe(id, url.searchParams.get('player') ?? undefined);
+    if (id && action === 'guesses' && method === 'POST') return judge(id, await readJson(request), originOf(request));
     if (id && action === 'results' && method === 'GET') return service.scoreboard(id);
     throw new HttpError(405, { error: 'methodNotAllowed' });
   }
@@ -53,21 +54,30 @@ export function createChallengeApi(service: ChallengeService) {
     });
   }
 
-  function judge(id: string, body: Record<string, unknown>): Promise<object> {
+  function judge(id: string, body: Record<string, unknown>, origin: string): Promise<object> {
     const { guesses, playerId, name } = body;
     if (!Array.isArray(guesses) || guesses.length === 0 || !guesses.every((guess) => typeof guess === 'string')) {
       throw new HttpError(400, { error: 'badRequest' });
     }
-    return service.judge(id, { guesses, playerId: text(playerId), name: text(name) });
+    return service.judge(id, { guesses, playerId: text(playerId), name: text(name), origin });
   }
 }
 
 function toHttpError(error: unknown): HttpError {
   if (error instanceof HttpError) return error;
   if (error instanceof BadRequestError) return new HttpError(400, { error: 'badRequest' });
+  if (error instanceof ConflictError) return new HttpError(409, { error: 'conflict' });
+  if (error instanceof TooManyAttemptsError) return new HttpError(429, { error: 'tooManyAttempts' });
   if (error instanceof GuessRejectedError) return new HttpError(422, { error: 'rejected', reason: error.reason });
   if (error instanceof ChallengeError) return new HttpError(error.reason === 'badWord' ? 422 : 404, { error: error.reason });
   throw error;
+}
+
+/** Cloud Run puts the client's address first in X-Forwarded-For. */
+function originOf(request: IncomingMessage): string {
+  const forwarded = request.headers['x-forwarded-for'];
+  const first = (Array.isArray(forwarded) ? forwarded[0] : forwarded)?.split(',')[0]?.trim();
+  return first || request.socket.remoteAddress || 'unknown';
 }
 
 function text(value: unknown): string {
