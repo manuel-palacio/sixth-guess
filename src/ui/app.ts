@@ -173,6 +173,7 @@ export class App {
 
   private applyLanguage(): void {
     applyStaticText(document, this.messages);
+    byId('build-info').textContent = describeBuild(this.messages, this.settings.language);
     this.board.setMessages(this.messages);
     this.scratchpad.setMessages(this.messages);
     this.keyboard.setLayout(LANGUAGES[this.settings.language], this.messages);
@@ -652,6 +653,11 @@ function releasePointerFocus(event: MouseEvent): void {
   if (!(button instanceof HTMLElement)) return;
   controlsUsedWithPointer = event.detail > 0;
   if (controlsUsedWithPointer) button.blur();
+}
+
+function describeBuild(messages: Messages, language: LanguageCode): string {
+  const date = new Intl.DateTimeFormat(language, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(__BUILD_TIME__));
+  return messages.builtOn(date, __BUILD_COMMIT__);
 }
 
 async function copyText(text: string): Promise<boolean> {

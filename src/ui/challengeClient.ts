@@ -4,6 +4,7 @@ import type { LanguageCode } from '../game/language.ts';
 import type { PlayerResult, SeriesScore } from '../game/series.ts';
 
 const PARAM = 'c';
+const PLAYER_HEADER = 'X-Player-Id';
 
 export interface RemoteChallenge {
   code: string;
@@ -50,8 +51,9 @@ export async function createChallengeCode({ challenge, story, playerId, replyTo 
   return ((await readOk(response)) as { id: string }).id;
 }
 
+/** The player id travels in a header: it identifies a board, and URLs end up in access logs. */
 export async function fetchChallenge(code: string, playerId: string): Promise<RemoteChallenge> {
-  const response = await request(`/api/challenges/${encodeURIComponent(code)}?player=${encodeURIComponent(playerId)}`);
+  const response = await request(`/api/challenges/${encodeURIComponent(code)}`, { headers: { [PLAYER_HEADER]: playerId } });
   if (response.status === 404) throw new ChallengeError('broken');
   return { code, ...((await readOk(response)) as Omit<RemoteChallenge, 'code'>) };
 }
@@ -75,7 +77,8 @@ export async function fetchScoreboard(code: string): Promise<PlayerResult[]> {
 
 async function request(path: string, init: RequestInit = {}): Promise<Response> {
   try {
-    return await fetch(new URL(`.${path}`, location.href.replace(/[?#].*$/, '')), { ...init, headers: { 'Content-Type': 'application/json' } });
+    const headers = { 'Content-Type': 'application/json', ...init.headers };
+    return await fetch(new URL(`.${path}`, location.href.replace(/[?#].*$/, '')), { ...init, headers });
   } catch {
     throw new ChallengeUnavailableError('Network error');
   }

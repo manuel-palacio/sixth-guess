@@ -1,3 +1,5 @@
+import { execSync } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
 import type { Connect, Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { defineConfig } from 'vitest/config';
@@ -6,6 +8,19 @@ import { ChallengeService } from './server/challengeService.ts';
 import { localChallengeKey } from './server/key.ts';
 import { MemoryStore } from './server/memoryStore.ts';
 import { loadWordBanks } from './server/wordSets.ts';
+
+/**
+ * Which commit is being built. The container build on Cloud Run has no git history, so the
+ * deploy workflow writes the commit to .build-commit first.
+ */
+function buildCommit(): string {
+  if (existsSync('.build-commit')) return readFileSync('.build-commit', 'utf8').trim();
+  try {
+    return execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+  } catch {
+    return 'dev';
+  }
+}
 
 /** Mounts the challenge API on the dev and preview servers, so local play and e2e tests hit real endpoints. */
 function challengeApiPlugin(): Plugin {
@@ -24,6 +39,10 @@ function challengeApiPlugin(): Plugin {
 
 export default defineConfig({
   base: './',
+  define: {
+    __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+    __BUILD_COMMIT__: JSON.stringify(buildCommit()),
+  },
   worker: { format: 'es' },
   plugins: [
     challengeApiPlugin(),

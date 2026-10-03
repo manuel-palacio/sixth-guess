@@ -25,9 +25,8 @@ export function createChallengeApi(service: ChallengeService) {
     const match = ROUTE.exec(new URL(request.url ?? '/', 'http://localhost').pathname);
     if (!match) return false;
     const [, id, action] = match;
-    const url = new URL(request.url ?? '/', 'http://localhost');
     try {
-      const body = await route(request.method ?? 'GET', id, action, request, url);
+      const body = await route(request.method ?? 'GET', id, action, request);
       sendJson(response, !id && request.method === 'POST' ? 201 : 200, body);
     } catch (error) {
       const { status, body } = toHttpError(error);
@@ -36,9 +35,9 @@ export function createChallengeApi(service: ChallengeService) {
     return true;
   };
 
-  async function route(method: string, id: string | undefined, action: string | undefined, request: IncomingMessage, url: URL): Promise<object> {
+  async function route(method: string, id: string | undefined, action: string | undefined, request: IncomingMessage): Promise<object> {
     if (!id && method === 'POST') return create(await readJson(request));
-    if (id && !action && method === 'GET') return service.describe(id, url.searchParams.get('player') ?? undefined);
+    if (id && !action && method === 'GET') return service.describe(id, playerIdHeader(request));
     if (id && action === 'guesses' && method === 'POST') return judge(id, await readJson(request), originOf(request));
     if (id && action === 'results' && method === 'GET') return service.scoreboard(id);
     throw new HttpError(405, { error: 'methodNotAllowed' });
@@ -72,6 +71,12 @@ function toHttpError(error: unknown): HttpError {
   if (error instanceof GuessRejectedError) return new HttpError(422, { error: 'rejected', reason: error.reason });
   if (error instanceof ChallengeError) return new HttpError(error.reason === 'badWord' ? 422 : 404, { error: error.reason });
   throw error;
+}
+
+/** Sent as a header rather than in the URL, which access logs record. */
+function playerIdHeader(request: IncomingMessage): string | undefined {
+  const value = request.headers['x-player-id'];
+  return Array.isArray(value) ? value[0] : value;
 }
 
 function originOf(request: IncomingMessage): string {

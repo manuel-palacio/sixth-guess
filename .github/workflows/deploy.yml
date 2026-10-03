@@ -54,6 +54,8 @@ jobs:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
       - uses: google-github-actions/setup-gcloud@v3
+      - name: Record the commit for the build info shown in Settings
+        run: echo "${GITHUB_SHA::7}" > .build-commit
       - name: Deploy to Cloud Run
         run: |
           gcloud run deploy sixth-guess \

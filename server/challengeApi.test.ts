@@ -53,8 +53,10 @@ describe('challenge API', () => {
   it('returns the asking player’s progress', async () => {
     const id = await createId('abide');
     await post(`/api/challenges/${id}/guesses`, { guesses: ['speed'], playerId: PLAYER });
-    const body = await (await fetch(`${base}/api/challenges/${id}?player=${PLAYER}`)).json();
+    const body = await (await fetch(`${base}/api/challenges/${id}`, { headers: { 'X-Player-Id': PLAYER } })).json();
     expect(body.progress).toMatchObject({ guesses: ['speed'], status: 'playing' });
+    const viaQuery = await (await fetch(`${base}/api/challenges/${id}?player=${PLAYER}`)).json();
+    expect(viaQuery.progress).toBeUndefined();
   });
 
   it('maps errors to status codes', async () => {

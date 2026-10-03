@@ -144,6 +144,7 @@ export interface Messages extends StaticText {
   couldWin: string;
   /** French typography puts a space before the colon. */
   colon: string;
+  builtOn(date: string, commit: string): string;
   slotKnown(letter: string): string;
   slotRuledOut(letters: string): string;
   slotUnknown: string;
@@ -282,6 +283,7 @@ const EN: Messages = {
   splits: (candidates, groups) => `splits ${candidates} words into ${groups} groups`,
   couldWin: ', and it could be the answer',
   colon: ': ',
+  builtOn: (date, commit) => `Built ${date} · ${commit}`,
   slotKnown: (letter) => `Known: ${letter}`,
   slotRuledOut: (letters) => `Unknown, not ${letters}`,
   slotUnknown: 'Unknown',
@@ -420,6 +422,7 @@ const ES: Messages = {
   splits: (candidates, groups) => `reparte ${candidates} palabras en ${groups} grupos`,
   couldWin: ', y podría ser la respuesta',
   colon: ': ',
+  builtOn: (date, commit) => `Compilado el ${date} · ${commit}`,
   slotKnown: (letter) => `Conocida: ${letter}`,
   slotRuledOut: (letters) => `Desconocida, no es ${letters}`,
   slotUnknown: 'Desconocida',
@@ -558,6 +561,7 @@ const FR: Messages = {
   splits: (candidates, groups) => `répartit ${candidates} mots en ${groups} groupes`,
   couldWin: ', et ce pourrait être la réponse',
   colon: ' : ',
+  builtOn: (date, commit) => `Version du ${date} · ${commit}`,
   slotKnown: (letter) => `Connue : ${letter}`,
   slotRuledOut: (letters) => `Inconnue, pas ${letters}`,
   slotUnknown: 'Inconnue',

@@ -1,0 +1,9 @@
+# Uploaded by `gcloud run deploy --source`. Kept separate from .gitignore so the
+# untracked .build-commit file written by the deploy workflow is included.
+.git
+.gitignore
+node_modules/
+dist/
+test-results/
+playwright-report/
+.idea/

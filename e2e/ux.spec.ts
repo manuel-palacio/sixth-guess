@@ -123,6 +123,16 @@ test.describe('keyboard accessibility', () => {
     await expect(page.locator('#settings-status')).toBeInViewport();
   });
 
+  test('settings show, quietly, when this version was built', async ({ page }) => {
+    await startPracticeWith(page, 'abide');
+    await page.click('#open-settings');
+    await expect(page.locator('#build-info')).toHaveText(/^Built .+20\d\d.+ · [0-9a-f]{7}$/);
+    await page.keyboard.press('Escape');
+    await page.selectOption('#language', 'es');
+    await page.click('#open-settings');
+    await expect(page.locator('#build-info')).toHaveText(/^Compilado el .+ · [0-9a-f]{7}$/);
+  });
+
   test('settings and stats open and close with the keyboard', async ({ page }) => {
     await startPracticeWith(page, 'abide');
     await page.locator('#open-settings').focus();
