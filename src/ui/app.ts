@@ -39,7 +39,7 @@ import { loadSettings, saveSettings, type Mode, type Palette, type PlayMode, typ
 import { Solver } from './solver.ts';
 import { loadWordBank, type WordBank } from './wordBank.ts';
 
-const GAME_NAME = 'Sixth Guess';
+const GAME_NAME = 'Palabrita';
 const TOAST_MS = 2200;
 const RESULT_DELAY_MS = 1400;
 const DESKTOP_QUERY = '(min-width: 900px)';

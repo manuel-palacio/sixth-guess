@@ -1,4 +1,4 @@
-# Sixth Guess
+# Palabrita
 
 A five-letter word-guessing game with unlimited practice, a scratchpad that does the pen-and-paper work,
 and hints that teach strategy. Plays in English, Spanish and French. Static site, no backend.

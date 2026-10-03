@@ -36,7 +36,7 @@ createServer((request, response) => {
     if (!response.headersSent) response.writeHead(500);
     response.end();
   });
-}).listen(PORT, () => console.log(`Sixth Guess listening on ${PORT}`));
+}).listen(PORT, () => console.log(`Palabrita listening on ${PORT}`));
 
 async function handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
   if (await api(request, response)) return;

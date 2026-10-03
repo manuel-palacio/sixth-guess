@@ -3,11 +3,11 @@ import { buildShareText } from './share.ts';
 import { scoreGuess } from './feedback.ts';
 
 const guesses = ['speed', 'aided', 'abide'].map((word) => ({ word, states: scoreGuess(word, 'abide') }));
-const details = { gameName: 'Sixth Guess', modeLabel: 'Daily #274', languageCode: 'en', guesses, won: true, hardMode: false, highContrast: false };
+const details = { gameName: 'Palabrita', modeLabel: 'Daily #274', languageCode: 'en', guesses, won: true, hardMode: false, highContrast: false };
 
 describe('buildShareText', () => {
   it('has the game name, mode, language and score, then the grid', () => {
-    expect(buildShareText(details)).toBe(['Sixth Guess · Daily #274 · EN · 3/6', '', '⬜⬜🟪⬜🟪', '🟩🟪🟪🟪⬜', '🟩🟩🟩🟩🟩'].join('\n'));
+    expect(buildShareText(details)).toBe(['Palabrita · Daily #274 · EN · 3/6', '', '⬜⬜🟪⬜🟪', '🟩🟪🟪🟪⬜', '🟩🟩🟩🟩🟩'].join('\n'));
   });
 
   it('marks hard mode and losses', () => {

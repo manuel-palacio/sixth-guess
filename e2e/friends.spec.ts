@@ -116,7 +116,7 @@ test.describe('friends playing each other', () => {
     await manu.click('#challenge-form button[type="submit"]');
     await expect(manu.locator('#challenge-status')).toHaveText('Challenge link copied');
     const message = await manu.evaluate(() => navigator.clipboard.readText());
-    expect(message).toMatch(/^Sixth Guess · Challenge · EN · 3\/6\n\n/);
+    expect(message).toMatch(/^Palabrita · Challenge · EN · 3\/6\n\n/);
     expect(message).toContain('Your turn: http');
     const second = await manu.locator('#challenge-link').inputValue();
 

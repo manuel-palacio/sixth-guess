@@ -68,6 +68,6 @@ jobs:
       - name: Smoke test
         run: |
           url=$(gcloud run services describe sixth-guess --project "${{ vars.GCP_PROJECT }}" --region "${{ vars.GCP_REGION }}" --format 'value(status.url)')
-          curl --fail --silent --show-error "$url/" | grep -q '<title>Sixth Guess</title>'
+          curl --fail --silent --show-error "$url/" | grep -q '<title>Palabrita</title>'
           curl --fail --silent --show-error -o /dev/null "$url/manifest.webmanifest"
           echo "Live at $url"

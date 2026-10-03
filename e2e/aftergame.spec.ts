@@ -31,7 +31,7 @@ test.describe('after the game', () => {
     const topmost = await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.id, { x: status.x + 5, y: status.y + status.height / 2 });
     expect(topmost).toBe('result-status');
     const text = await page.evaluate(() => navigator.clipboard.readText());
-    expect(text).toBe('Sixth Guess · Practice · EN · 2/6\n\n⬜⬜🟪⬜🟪\n🟩🟩🟩🟩🟩');
+    expect(text).toBe('Palabrita · Practice · EN · 2/6\n\n⬜⬜🟪⬜🟪\n🟩🟩🟩🟩🟩');
   });
 
   test('records stats per mode', async ({ page }) => {

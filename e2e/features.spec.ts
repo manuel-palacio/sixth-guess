@@ -269,7 +269,7 @@ test.describe('install and offline play', () => {
     await page.goto('/');
     const href = await page.locator('link[rel="manifest"]').getAttribute('href');
     const manifest = await (await request.get(href!)).json();
-    expect(manifest.name).toBe('Sixth Guess');
+    expect(manifest.name).toBe('Palabrita');
     expect(manifest.display).toBe('standalone');
     expect(manifest.icons.map((icon: { sizes: string }) => icon.sizes)).toEqual(expect.arrayContaining(['192x192', '512x512']));
   });

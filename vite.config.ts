@@ -31,8 +31,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
-        name: 'Sixth Guess',
-        short_name: 'Sixth Guess',
+        name: 'Palabrita',
+        short_name: 'Palabrita',
         description: 'Guess the five-letter word in six tries, with a scratchpad that does the pen-and-paper work.',
         start_url: '.',
         scope: '.',
