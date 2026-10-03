@@ -65,6 +65,14 @@ jobs:
             --max-instances 3 \
             --set-secrets CHALLENGE_KEY=challenge-key:latest \
             --quiet
+      - name: Send all traffic to the new revision
+        # A manual deploy with --no-traffic pins traffic to an older revision; this keeps every push live.
+        run: |
+          gcloud run services update-traffic sixth-guess \
+            --project "${{ vars.GCP_PROJECT }}" \
+            --region "${{ vars.GCP_REGION }}" \
+            --to-latest \
+            --quiet
       - name: Smoke test
         run: |
           url=$(gcloud run services describe sixth-guess --project "${{ vars.GCP_PROJECT }}" --region "${{ vars.GCP_REGION }}" --format 'value(status.url)')

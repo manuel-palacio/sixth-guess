@@ -3,6 +3,7 @@ import { ChallengeError } from '../src/game/challenge.ts';
 import { GuessRejectedError } from '../src/game/game.ts';
 import { LANGUAGE_CODES, type LanguageCode } from '../src/game/language.ts';
 import { BadRequestError, ConflictError, TooManyAttemptsError, type ChallengeService } from './challengeService.ts';
+import { originFromForwardedFor } from './origin.ts';
 
 const MAX_BODY_BYTES = 4096;
 const ROUTE = /^\/api\/challenges(?:\/([A-Za-z0-9_-]+)(?:\/(guesses|results))?)?$/;
@@ -73,11 +74,9 @@ function toHttpError(error: unknown): HttpError {
   throw error;
 }
 
-/** Cloud Run puts the client's address first in X-Forwarded-For. */
 function originOf(request: IncomingMessage): string {
   const forwarded = request.headers['x-forwarded-for'];
-  const first = (Array.isArray(forwarded) ? forwarded[0] : forwarded)?.split(',')[0]?.trim();
-  return first || request.socket.remoteAddress || 'unknown';
+  return originFromForwardedFor(Array.isArray(forwarded) ? forwarded.join(',') : forwarded, request.socket.remoteAddress ?? 'unknown');
 }
 
 function text(value: unknown): string {

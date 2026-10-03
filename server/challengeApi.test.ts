@@ -67,6 +67,19 @@ describe('challenge API', () => {
     expect((await post('/api/challenges', { language: 'en', word: 'crane' })).status).toBe(400);
   });
 
+  it('limits fresh attempts by the address the platform appended, not one the client made up', async () => {
+    const id = await createId('abide');
+    const start = (player: string, forwardedFor: string) =>
+      fetch(`${base}/api/challenges/${id}/guesses`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': forwardedFor },
+        body: JSON.stringify({ guesses: ['speed'], playerId: player }),
+      });
+    for (let n = 1; n <= 4; n++) expect((await start(`spoofer-${n}-0000`, `10.0.0.${n}, 198.51.100.20`)).status).toBe(200);
+    expect((await start('spoofer-5-0000', '10.0.0.5, 198.51.100.20')).status).toBe(429);
+    expect((await start('neighbour-0000', '198.51.100.21')).status).toBe(200);
+  });
+
   it('leaves other paths alone', async () => {
     expect((await fetch(`${base}/index.html`)).status).toBe(404);
   });
